@@ -1,10 +1,14 @@
 const router = require('express').Router();
 const { auth } = require('../middleware/auth');
-const { listNotifications, markRead, markAllRead } = require('../controllers/notificationController');
+const validateId = require('../middleware/validateId');
+const ctrl = require('../controllers/notificationController');
 
+router.param('id', validateId);
 router.use(auth);
-router.get('/', listNotifications);
-router.patch('/read-all', markAllRead);
-router.patch('/:id/read', markRead);
+
+router.get('/', ctrl.listNotifications);
+router.get('/unread-count', ctrl.unreadCount);
+router.patch('/read-all', ctrl.markAllRead);
+router.patch('/:id/read', ctrl.markRead);
 
 module.exports = router;

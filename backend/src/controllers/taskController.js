@@ -1,32 +1,29 @@
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
+const Project = require('../models/Project');
 const AppError = require('../utils/AppError');
 const { emitToProject, notifyUser } = require('../sockets/emit');
-const { requiredText, oneOf, parseDate } = require('../utils/validate');
+const { Validator, escapeRegex } = require('../utils/validate');
+const { getPage, pageInfo } = require('../utils/pagination');
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
 const STATUS_LABEL = { todo: 'Da fare', in_progress: 'In corso', done: 'Completato' };
 
-function ensureActive(project) {
-  if (project.status === 'archived') throw new AppError(400, 'Il progetto è archiviato: i task non si possono modificare');
-}
-
-// L'assegnatario deve essere il proprietario o un membro del progetto (null = nessuno).
-function checkAssignee(project, assigneeId) {
-  if (assigneeId === null || assigneeId === '' || assigneeId === undefined) return null;
-  const isInProject =
-    mongoose.isValidObjectId(assigneeId) &&
-    (project.owner.equals(assigneeId) || project.members.some((m) => m.equals(assigneeId)));
-  if (!isInProject) throw new AppError(400, 'L\'assegnatario deve essere un membro del progetto');
-  return assigneeId;
+// L'assegnatario deve essere il proprietario o un membro del progetto (null/'' = nessuno).
+function readAssignee(v, project, value) {
+  if (value === null || value === '' || value === undefined) return null;
+  const valid =
+    mongoose.isValidObjectId(value) && (project.owner.equals(value) || project.members.some((m) => m.equals(value)));
+  if (!valid) {
+    v.fail('assignee', 'L\'assegnatario deve essere un membro del progetto');
+    return undefined;
+  }
+  return value;
 }
 
 async function findTask(req) {
-  const { taskId } = req.params;
-  const task = mongoose.isValidObjectId(taskId)
-    ? await Task.findOne({ _id: taskId, project: req.project.id })
-    : null;
+  const task = await Task.findOne({ _id: req.params.taskId, project: req.project.id });
   if (!task) throw new AppError(404, 'Task non trovato');
   return task;
 }
@@ -39,6 +36,7 @@ async function notifyAssigned(task, project, actor) {
       type: 'task_assigned',
       text: `${actor.name} ti ha assegnato il task "${task.title}" in "${project.title}"`,
       project: project.id,
+      task: task.id,
     });
   }
 }
@@ -49,29 +47,30 @@ async function notifyMoved(task, project, actor) {
       type: 'task_moved',
       text: `Il task "${task.title}" è ora in "${STATUS_LABEL[task.status]}"`,
       project: project.id,
+      task: task.id,
     });
   }
 }
 
 async function listTasks(req, res) {
-  const tasks = await Task.find({ project: req.project.id }).sort({ createdAt: 1 }).populate('assignee', 'name email');
+  const tasks = await Task.find({ project: req.project.id }).sort({ createdAt: 1 }).limit(1000).populate('assignee', 'name email');
   res.json({ tasks });
 }
 
 async function createTask(req, res) {
-  const { project } = req;
-  ensureActive(project);
+  const { project, body } = req;
+  const v = new Validator();
+  const data = {
+    title: v.text('title', body.title, { label: 'Il titolo', required: true, max: 120 }),
+    description: v.text('description', body.description, { label: 'La descrizione', max: 2000 }),
+    priority: v.oneOf('priority', body.priority || 'medium', PRIORITIES, 'Priorità'),
+    status: v.oneOf('status', body.status || 'todo', STATUSES, 'Stato'),
+    assignee: readAssignee(v, project, body.assignee),
+  };
+  if (body.dueDate) data.dueDate = v.date('dueDate', body.dueDate, 'La scadenza');
+  v.throwIfErrors();
 
-  const task = await Task.create({
-    project: project.id,
-    title: requiredText(req.body.title, 'Il titolo', 120),
-    description: (req.body.description || '').trim(),
-    dueDate: req.body.dueDate ? parseDate(req.body.dueDate, 'La scadenza') : undefined,
-    priority: oneOf(req.body.priority || 'medium', PRIORITIES, 'Priorità'),
-    status: oneOf(req.body.status || 'todo', STATUSES, 'Stato'),
-    assignee: checkAssignee(project, req.body.assignee),
-    createdBy: req.user.id,
-  });
+  const task = await Task.create({ ...data, project: project.id, createdBy: req.user.id });
   await populateTask(task);
 
   emitToProject(project.id, 'task:created', task);
@@ -80,20 +79,20 @@ async function createTask(req, res) {
 }
 
 async function updateTask(req, res) {
-  const { project } = req;
-  ensureActive(project);
+  const { project, body } = req;
   const task = await findTask(req);
-  const { title, description, dueDate, priority, status, assignee } = req.body;
+  const v = new Validator();
 
   const previousStatus = task.status;
   const previousAssignee = task.assignee && task.assignee.toString();
 
-  if (title !== undefined) task.title = requiredText(title, 'Il titolo', 120);
-  if (description !== undefined) task.description = String(description).trim();
-  if (dueDate !== undefined) task.dueDate = dueDate ? parseDate(dueDate, 'La scadenza') : undefined;
-  if (priority !== undefined) task.priority = oneOf(priority, PRIORITIES, 'Priorità');
-  if (status !== undefined) task.status = oneOf(status, STATUSES, 'Stato');
-  if (assignee !== undefined) task.assignee = checkAssignee(project, assignee);
+  if (body.title !== undefined) task.title = v.text('title', body.title, { label: 'Il titolo', required: true, max: 120 });
+  if (body.description !== undefined) task.description = v.text('description', body.description, { label: 'La descrizione', max: 2000 });
+  if (body.priority !== undefined) task.priority = v.oneOf('priority', body.priority, PRIORITIES, 'Priorità');
+  if (body.status !== undefined) task.status = v.oneOf('status', body.status, STATUSES, 'Stato');
+  if (body.assignee !== undefined) task.assignee = readAssignee(v, project, body.assignee);
+  if (body.dueDate !== undefined) task.dueDate = body.dueDate ? v.date('dueDate', body.dueDate, 'La scadenza') : undefined;
+  v.throwIfErrors();
 
   await task.save();
   await populateTask(task);
@@ -104,13 +103,15 @@ async function updateTask(req, res) {
   res.json({ task });
 }
 
-// Spostamento tra le colonne della bacheca.
+// Spostamento tra le colonne della bacheca (drag and drop o menu "Sposta in").
 async function moveTask(req, res) {
   const { project } = req;
-  ensureActive(project);
   const task = await findTask(req);
 
-  const status = oneOf(req.body.status, STATUSES, 'Stato');
+  const v = new Validator();
+  const status = v.oneOf('status', req.body.status, STATUSES, 'Stato');
+  v.throwIfErrors();
+
   if (status !== task.status) {
     task.status = status;
     await task.save();
@@ -123,25 +124,27 @@ async function moveTask(req, res) {
   res.json({ task });
 }
 
-// Riassegnazione ad un altro membro (assignee: null = rimuove l'assegnatario).
+// Riassegnazione ad un altro membro (assignee: null = nessun assegnatario).
 async function assignTask(req, res) {
   const { project } = req;
-  ensureActive(project);
   const task = await findTask(req);
 
-  if (req.body.assignee === undefined) throw new AppError(400, 'Il campo assignee è obbligatorio');
-  task.assignee = checkAssignee(project, req.body.assignee);
+  if (req.body.assignee === undefined) throw new AppError(400, 'Il campo assignee è obbligatorio', { assignee: 'Il campo assignee è obbligatorio' });
+  const v = new Validator();
+  const previous = task.assignee && task.assignee.toString();
+  task.assignee = readAssignee(v, project, req.body.assignee);
+  v.throwIfErrors();
+
   await task.save();
   await populateTask(task);
 
   emitToProject(project.id, 'task:updated', task);
-  await notifyAssigned(task, project, req.user);
+  if (task.assignee && task.assignee._id.toString() !== previous) await notifyAssigned(task, project, req.user);
   res.json({ task });
 }
 
 async function deleteTask(req, res) {
   const { project } = req;
-  ensureActive(project);
   const task = await findTask(req);
   await task.deleteOne();
 
@@ -149,4 +152,48 @@ async function deleteTask(req, res) {
   res.json({ message: 'Task eliminato' });
 }
 
-module.exports = { listTasks, createTask, updateTask, moveTask, assignTask, deleteTask };
+// Progetti i cui task l'utente può vedere (quelli oscurati restano visibili solo al proprietario).
+async function visibleProjectIds(userId) {
+  const projects = await Project.find({
+    $and: [{ $or: [{ owner: userId }, { members: userId }] }, { $nor: [{ status: 'hidden', owner: { $ne: userId } }] }],
+  }).select('_id');
+  return projects.map((p) => p._id);
+}
+
+const startOfToday = () => new Date(new Date().setHours(0, 0, 0, 0));
+
+// I miei task su tutti i progetti, con filtri e ordinati per scadenza (quelli senza scadenza in fondo).
+async function myTasks(req, res) {
+  const { status = 'open', due = 'all', q } = req.query;
+  const v = new Validator();
+  v.oneOf('status', status, ['open', 'all', ...STATUSES], 'Stato');
+  v.oneOf('due', due, ['all', 'overdue', 'week', 'none'], 'Scadenza');
+  v.throwIfErrors();
+
+  const match = { assignee: new mongoose.Types.ObjectId(req.user.id), project: { $in: await visibleProjectIds(req.user.id) } };
+  if (status === 'open') match.status = { $ne: 'done' };
+  else if (status !== 'all') match.status = status;
+  if (q) match.title = new RegExp(escapeRegex(String(q).slice(0, 80)), 'i');
+
+  const today = startOfToday();
+  if (due === 'overdue') Object.assign(match, { dueDate: { $lt: today }, status: { $ne: 'done' } });
+  if (due === 'week') match.dueDate = { $gte: today, $lt: new Date(today.getTime() + 8 * 86400000) };
+  if (due === 'none') match.dueDate = null;
+
+  const paging = getPage(req.query, { defaultLimit: 20, maxLimit: 50 });
+  const [total, rows] = await Promise.all([
+    Task.countDocuments(match),
+    Task.aggregate([
+      { $match: match },
+      { $addFields: { noDue: { $cond: [{ $ifNull: ['$dueDate', false] }, 0, 1] } } },
+      { $sort: { noDue: 1, dueDate: 1, createdAt: -1 } },
+      { $skip: paging.skip },
+      { $limit: paging.limit },
+    ]),
+  ]);
+  const tasks = await Task.populate(rows, { path: 'project', select: 'title status' });
+
+  res.json({ tasks, ...pageInfo(total, paging) });
+}
+
+module.exports = { listTasks, createTask, updateTask, moveTask, assignTask, deleteTask, myTasks, visibleProjectIds, startOfToday };

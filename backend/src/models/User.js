@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     blocked: { type: Boolean, default: false },
+    // I token emessi prima di questa data non valgono più (cambio password).
+    passwordChangedAt: { type: Date },
   },
   { timestamps: true }
 );
@@ -15,6 +17,7 @@ const userSchema = new mongoose.Schema(
 userSchema.set('toJSON', {
   transform: (doc, ret) => {
     delete ret.passwordHash;
+    delete ret.passwordChangedAt;
     delete ret.__v;
     return ret;
   },

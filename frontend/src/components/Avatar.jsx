@@ -1,12 +1,17 @@
 import { initials } from '../utils';
 
-// Colore stabile ricavato dal nome, così la stessa persona ha sempre lo stesso avatar.
-const COLORS = ['#4f46e5', '#0891b2', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#dc2626', '#0d9488'];
+// Colori stabili ricavati dal nome, sempre nella palette del marchio.
+const TONES = [
+  { bg: '#101010', fg: '#FFD600' },
+  { bg: '#FFD600', fg: '#101010' },
+  { bg: '#E4E4E0', fg: '#101010' },
+  { bg: '#3A3A3A', fg: '#FFFFFF' },
+];
 
 export default function Avatar({ name = '?', size = 28 }) {
-  const color = COLORS[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % COLORS.length];
+  const tone = TONES[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % TONES.length];
   return (
-    <span className="avatar" title={name} style={{ background: color, width: size, height: size, fontSize: size * 0.4 }}>
+    <span className="avatar" title={name} style={{ background: tone.bg, color: tone.fg, width: size, height: size, fontSize: size * 0.4 }}>
       {initials(name)}
     </span>
   );

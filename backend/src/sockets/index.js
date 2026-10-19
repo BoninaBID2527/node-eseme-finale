@@ -27,7 +27,10 @@ function initSockets(httpServer) {
 
       next();
     } catch (err) {
-      next(new Error(err.message));
+      // Il client riceve il messaggio e il codice (es. account_blocked) per decidere cosa mostrare.
+      const error = new Error(err.message);
+      error.data = { code: err.code };
+      next(error);
     }
   });
 

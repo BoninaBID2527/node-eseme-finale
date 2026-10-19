@@ -1,34 +1,50 @@
 import { Link } from 'react-router-dom';
+import Avatar from './Avatar';
+import { ProgressBar, ProjectStatusBadge, VisibilityLabel } from './Badges';
+import ProjectCover from './ProjectCover';
 import { formatDate } from '../utils';
 
-// Copertina: l'immagine caricata, oppure un gradiente con l'iniziale del titolo.
-export default function ProjectCard({ project }) {
-  const owner = project.owner?.name;
+// Card del catalogo e dei miei progetti. Tutta la card è cliccabile tramite il link del titolo.
+export default function ProjectCard({ project, showProgress = false }) {
+  const technologies = project.technologies || [];
   return (
-    <Link to={`/projects/${project._id}`} className="card project-card">
-      <div className="cover" style={project.coverImage ? { backgroundImage: `url(${project.coverImage})` } : undefined}>
-        {!project.coverImage && <span>{project.title[0]?.toUpperCase()}</span>}
-        {project.status !== 'active' && <em className="badge badge-status">{project.status === 'archived' ? 'Archiviato' : 'Nascosto'}</em>}
+    <article className="project-card">
+      <ProjectCover project={project} />
+      <div className="project-card-body">
+        <div className="project-card-meta">
+          <span className="eyebrow">{project.category}</span>
+          <ProjectStatusBadge status={project.status} />
+          {showProgress && <VisibilityLabel visibility={project.visibility} />}
+        </div>
+        <h3>
+          <Link to={`/projects/${project._id}`} className="stretched-link">
+            {project.title}
+          </Link>
+        </h3>
+        {project.description && <p className="clamp-2">{project.description}</p>}
+        {technologies.length > 0 && (
+          <ul className="chips" aria-label="Tecnologie">
+            {technologies.slice(0, 3).map((t) => (
+              <li key={t} className="chip">
+                {t}
+              </li>
+            ))}
+            {technologies.length > 3 && <li className="chip chip-more">+{technologies.length - 3}</li>}
+          </ul>
+        )}
+        {showProgress && project.progress && <ProgressBar done={project.progress.done} total={project.progress.total} />}
+        <div className="project-card-foot">
+          {project.owner?.name && (
+            <>
+              <Avatar name={project.owner.name} size={22} />
+              <span className="truncate">{project.owner.name}</span>
+            </>
+          )}
+          <time dateTime={project.createdAt} className="muted">
+            {formatDate(project.createdAt)}
+          </time>
+        </div>
       </div>
-      <div className="card-body">
-        <div className="card-meta">
-          <span className="chip chip-category">{project.category}</span>
-          <span className="muted">{project.visibility === 'public' ? 'Pubblico' : 'Privato'}</span>
-        </div>
-        <h3>{project.title}</h3>
-        {project.description && <p className="clamp">{project.description}</p>}
-        <div className="chips">
-          {project.technologies?.slice(0, 4).map((t) => (
-            <span key={t} className="chip">
-              {t}
-            </span>
-          ))}
-        </div>
-        <div className="card-foot muted">
-          {owner ? `di ${owner} · ` : ''}
-          {formatDate(project.createdAt)}
-        </div>
-      </div>
-    </Link>
+    </article>
   );
 }

@@ -1,233 +1,220 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import Avatar from '../components/Avatar';
+import { ProjectStatusBadge, VisibilityLabel } from '../components/Badges';
 import Board from '../components/Board';
 import Chat from '../components/Chat';
-import MembersPanel from '../components/MembersPanel';
-import Modal from '../components/Modal';
+import Icon from '../components/Icon';
+import MembersTab from '../components/MembersTab';
+import OverviewTab from '../components/OverviewTab';
+import ProjectCover from '../components/ProjectCover';
+import ReportModal from '../components/ReportModal';
+import SettingsTab from '../components/SettingsTab';
+import { Skeleton } from '../components/Skeleton';
+import { ErrorState } from '../components/StateMessage';
+import Tabs from '../components/Tabs';
 import { useAuth } from '../context/AuthContext';
-import { useSocketEvent } from '../context/RealtimeContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { useRealtime, useSocketEvent } from '../context/RealtimeContext';
 import { useToast } from '../context/ToastContext';
-import { formatDate } from '../utils';
-
-function ReportModal({ projectId, onClose }) {
-  const toast = useToast();
-  const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post(`/projects/${projectId}/report`, { reason });
-      toast('Segnalazione inviata agli amministratori', 'success');
-      onClose();
-    } catch (err) {
-      toast(err.message, 'error');
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal title="Segnala progetto" onClose={onClose}>
-      <form className="form" onSubmit={submit}>
-        <label>
-          Perché vuoi segnalarlo?
-          <textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={500} autoFocus />
-        </label>
-        <div className="modal-actions">
-          <span className="spacer" />
-          <button type="button" className="btn" onClick={onClose}>
-            Annulla
-          </button>
-          <button className="btn btn-primary" disabled={busy}>
-            Invia segnalazione
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
+import useAsync from '../hooks/useAsync';
+import useDocumentTitle from '../hooks/useDocumentTitle';
+import useProjectTasks from '../hooks/useProjectTasks';
+import { errorMessage } from '../utils';
 
 export default function ProjectPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
-  const [state, setState] = useState(null); // { project, isOwner, isMember }
-  const [error, setError] = useState('');
-  const [tab, setTab] = useState('chat');
+  const { resyncKey } = useRealtime();
+  const [params, setParams] = useSearchParams();
   const [reporting, setReporting] = useState(false);
 
-  const load = useCallback(() => {
-    api
-      .get(`/projects/${id}`)
-      .then((data) => {
-        setState(data);
-        setError('');
-      })
-      .catch((err) => setError(err.message));
-  }, [id]);
+  const { data, error, reload, setData } = useAsync(() => api.get(`/projects/${id}`), [id]);
+  const project = data?.project;
+  const isOwner = data?.isOwner ?? false;
+  const isMember = data?.isMember ?? false;
+  const isAdmin = user.role === 'admin';
+  const writable = project?.status === 'active';
+  useDocumentTitle(project?.title);
 
+  // I task servono a panoramica e bacheca: li carichiamo una volta sola per i membri.
+  const tasksApi = useProjectTasks(id, isMember && project?.status !== undefined);
+
+  // Merge dei campi aggiornati (da modifiche locali o da eventi live) nello stato del progetto.
+  const applyUpdate = useCallback((changes) => setData((d) => d && { ...d, project: { ...d.project, ...changes } }), [setData]);
+
+  // ---- Eventi live del progetto ----
+  useSocketEvent('project:updated', useCallback((p) => {
+    if (p._id !== id) return;
+    applyUpdate(p);
+    if (p.status === 'hidden' && !isOwner && !isAdmin) {
+      toast('Il progetto è stato oscurato da un amministratore', 'info');
+      navigate('/projects');
+    }
+  }, [id, applyUpdate, isOwner, isAdmin, navigate, toast]));
+  useSocketEvent('project:deleted', useCallback((e) => {
+    if (e.projectId !== id) return;
+    toast(`Il progetto "${e.title}" è stato eliminato`, 'info');
+    navigate('/projects');
+  }, [id, navigate, toast]));
+  useSocketEvent('member:joined', useCallback((e) => e.projectId === id && reload({ silent: true }), [id, reload]));
+  useSocketEvent('member:removed', useCallback((e) => {
+    if (e.projectId !== id) return;
+    if (e.userId === user._id) {
+      toast('Non fai più parte di questo progetto', 'info');
+      navigate('/projects');
+    } else reload({ silent: true });
+  }, [id, user._id, reload, navigate, toast]));
   useEffect(() => {
-    setState(null);
-    load();
-  }, [load]);
+    if (resyncKey) reload({ silent: true });
+  }, [resyncKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Eventi live sui membri: aggiorna la lista, oppure esci se sei stato rimosso.
-  useSocketEvent('member:joined', useCallback((e) => e.projectId === id && load(), [id, load]));
-  useSocketEvent(
-    'member:removed',
-    useCallback(
-      (e) => {
-        if (e.projectId !== id) return;
-        if (e.userId === user._id) {
-          toast('Sei stato rimosso dal progetto', 'info');
-          navigate('/dashboard');
-        } else {
-          load();
-        }
-      },
-      [id, user._id, load, navigate, toast]
-    )
-  );
+  // ---- Schede disponibili in base ai permessi ----
+  const tabs = useMemo(() => {
+    const list = [{ id: 'overview', label: 'Panoramica' }];
+    if (isMember) list.push({ id: 'board', label: 'Bacheca', count: tasksApi.tasks?.length });
+    list.push({ id: 'members', label: 'Membri', count: project ? project.members.length + 1 : undefined });
+    if (isMember) list.push({ id: 'chat', label: 'Chat' });
+    if (isOwner) list.push({ id: 'settings', label: 'Impostazioni' });
+    return list;
+  }, [isMember, isOwner, project, tasksApi.tasks]);
+
+  const requested = params.get('tab');
+  const tab = tabs.some((t) => t.id === requested) ? requested : isMember ? 'board' : 'overview';
+  const setTab = (next) => setParams((prev) => { const p = new URLSearchParams(prev); p.set('tab', next); p.delete('task'); return p; }, { replace: true });
+  const clearTaskParam = useCallback(() => setParams((prev) => { const p = new URLSearchParams(prev); p.delete('task'); return p; }, { replace: true }), [setParams]);
+
+  // La risposta di PUT/PATCH contiene proprietario e membri come semplici id (non "popolati"):
+  // si fondono solo i campi del progetto, poi si ricarica la versione completa dal server.
+  const onSettingsUpdated = (changes) => {
+    const { owner, members, ...fields } = changes; // eslint-disable-line no-unused-vars
+    applyUpdate(fields);
+    reload({ silent: true });
+  };
+
+  const toggleHidden = async () => {
+    const hide = project.status !== 'hidden';
+    const ok = await confirm({
+      title: hide ? 'Oscurare il progetto?' : 'Rendere di nuovo visibile il progetto?',
+      message: hide
+        ? 'Il progetto esce dal catalogo, i membri (tranne il proprietario) perdono l\'accesso e le segnalazioni aperte vengono chiuse come gestite.'
+        : 'Il progetto torna attivo e i membri riottengono l\'accesso.',
+      confirmLabel: hide ? 'Oscura' : 'Rendi visibile',
+      danger: hide,
+    });
+    if (!ok) return;
+    try {
+      const res = await api.patch(`/admin/projects/${id}/hide`, { hidden: hide });
+      applyUpdate({ status: res.project.status });
+      toast(hide ? 'Progetto oscurato' : 'Progetto di nuovo visibile', 'success');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    }
+  };
 
   if (error) {
     return (
       <div className="page">
-        <div className="empty card">
-          <h3>{error}</h3>
-          <Link className="btn" to="/catalog">
-            Torna al catalogo
-          </Link>
-        </div>
+        <ErrorState message={error} onRetry={reload} />
+        <p className="center muted"><Link to="/catalog">Torna al catalogo</Link></p>
       </div>
     );
   }
-  if (!state) return <div className="page muted">Caricamento…</div>;
 
-  const { project, isOwner, isMember } = state;
-  const isAdmin = user.role === 'admin';
-  const archived = project.status === 'archived';
-  const hidden = project.status === 'hidden';
+  if (!project) {
+    return (
+      <div className="page" aria-busy="true">
+        <Skeleton height={150} width="100%" radius={12} />
+        <div style={{ height: 24 }} />
+        <Skeleton height={300} width="100%" radius={12} />
+      </div>
+    );
+  }
+
   const people = [project.owner, ...project.members];
-
-  const setProject = (updated) => setState({ ...state, project: { ...project, ...updated } });
-
-  const toggleArchive = async () => {
-    try {
-      const data = await api.patch(`/projects/${id}/archive`, { archived: !archived });
-      setProject({ status: data.project.status });
-      toast(archived ? 'Progetto riattivato' : 'Progetto archiviato', 'success');
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  };
-
-  const toggleHidden = async () => {
-    try {
-      const data = await api.patch(`/admin/projects/${id}/hide`, { hidden: !hidden });
-      setProject({ status: data.project.status });
-      toast(hidden ? 'Progetto di nuovo visibile' : 'Progetto nascosto dal catalogo', 'success');
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  };
-
-  const remove = async () => {
-    if (!window.confirm(`Eliminare definitivamente "${project.title}" con tutti i suoi task e messaggi?`)) return;
-    try {
-      await api.delete(`/projects/${id}`);
-      toast('Progetto eliminato', 'success');
-      navigate('/dashboard');
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  };
 
   return (
     <div className="page page-wide">
-      {archived && <div className="banner banner-warn">Questo progetto è archiviato: la bacheca è in sola lettura.</div>}
-      {hidden && <div className="banner banner-danger">Questo progetto è stato nascosto da un amministratore.</div>}
+      {project.status === 'archived' && (
+        <div className="banner banner-warn" role="status">
+          <Icon name="archive" size={18} />
+          <span>Questo progetto è archiviato: è in sola lettura (task, chat, inviti e modifiche sono bloccati).</span>
+          {isOwner && <button className="btn btn-sm" onClick={() => setTab('settings')}>Riattiva</button>}
+        </div>
+      )}
+      {project.status === 'hidden' && (
+        <div className="banner banner-danger" role="status">
+          <Icon name="eye-off" size={18} />
+          <span>Questo progetto è stato oscurato da un amministratore: non è visibile nel catalogo e non è modificabile.</span>
+        </div>
+      )}
 
-      <header className="project-head card">
-        <div className="project-cover" style={project.coverImage ? { backgroundImage: `url(${project.coverImage})` } : undefined} />
-        <div className="project-info">
-          <div className="card-meta">
-            <span className="chip chip-category">{project.category}</span>
-            <span className="muted">{project.visibility === 'public' ? 'Pubblico' : 'Privato'}</span>
-            <span className="muted">· creato il {formatDate(project.createdAt)}</span>
+      <header className="project-head">
+        <ProjectCover project={project} className="project-head-cover" />
+        <div className="project-head-info">
+          <div className="project-card-meta">
+            <span className="eyebrow">{project.category}</span>
+            <VisibilityLabel visibility={project.visibility} />
+            <ProjectStatusBadge status={project.status} />
           </div>
           <h1>{project.title}</h1>
-          {project.description && <p className="project-desc">{project.description}</p>}
-          <div className="chips">
-            {project.technologies.map((t) => (
-              <span key={t} className="chip">
-                {t}
-              </span>
-            ))}
+          <div className="project-head-people">
+            <ul className="avatar-stack" aria-label="Membri">
+              {people.slice(0, 5).map((p) => (
+                <li key={p._id}><Avatar name={p.name} size={30} /></li>
+              ))}
+            </ul>
+            <span className="muted">
+              di <strong>{project.owner.name}</strong> · {people.length} {people.length === 1 ? 'persona' : 'persone'}
+            </span>
           </div>
         </div>
-        <div className="project-actions">
-          {isOwner && (
-            <>
-              <Link className="btn" to={`/projects/${id}/edit`}>
-                Modifica
-              </Link>
-              <button className="btn" onClick={toggleArchive} disabled={hidden}>
-                {archived ? 'Riattiva' : 'Archivia'}
-              </button>
-              <button className="btn btn-danger-ghost" onClick={remove}>
-                Elimina
-              </button>
-            </>
-          )}
+        <div className="project-head-actions">
           {!isOwner && (
             <button className="btn" onClick={() => setReporting(true)}>
-              Segnala
+              <Icon name="flag" size={16} /> Segnala
             </button>
           )}
           {isAdmin && (
-            <button className="btn" onClick={toggleHidden}>
-              {hidden ? 'Rendi visibile' : 'Nascondi (admin)'}
+            <button className="btn btn-dark" onClick={toggleHidden}>
+              <Icon name={project.status === 'hidden' ? 'eye' : 'eye-off'} size={16} /> {project.status === 'hidden' ? 'Rendi visibile' : 'Oscura'}
             </button>
           )}
         </div>
       </header>
 
-      <div className="workspace">
-        <section className="workspace-main">
-          <h2>Bacheca</h2>
-          {isMember ? (
-            <Board project={project} people={people} readOnly={archived} />
-          ) : (
-            <div className="empty card">
-              <h3>La bacheca è riservata ai membri</h3>
-              <p className="muted">Chiedi a {project.owner.name} di invitarti usando la tua email.</p>
-            </div>
-          )}
-        </section>
+      <Tabs tabs={tabs} value={tab} onChange={setTab} label="Sezioni del progetto" idPrefix="pt" className="project-tabs" />
 
-        <aside className="workspace-side card">
-          <div className="tabs" role="tablist">
-            {isMember && (
-              <button role="tab" className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
-                Chat
-              </button>
-            )}
-            <button role="tab" className={tab === 'members' || !isMember ? 'active' : ''} onClick={() => setTab('members')}>
-              Membri ({people.length})
-            </button>
-          </div>
-          {isMember && tab === 'chat' ? (
-            <Chat projectId={project._id} />
-          ) : (
-            <MembersPanel project={project} isOwner={isOwner} onChange={setProject} />
-          )}
-        </aside>
+      <div role="tabpanel" id={`pt-panel-${tab}`} aria-labelledby={`pt-${tab}`} className="tab-panel" tabIndex={-1}>
+        {tab === 'overview' && <OverviewTab project={project} isMember={isMember} tasks={tasksApi.tasks} onOpenTab={setTab} />}
+        {tab === 'board' && (
+          <Board
+            project={project}
+            people={people}
+            readOnly={!writable}
+            tasksApi={tasksApi}
+            openTaskId={params.get('task')}
+            onTaskOpened={clearTaskParam}
+          />
+        )}
+        {tab === 'members' && (
+          <MembersTab
+            project={project}
+            isOwner={isOwner}
+            isMember={isMember}
+            writable={writable}
+            onChanged={() => reload({ silent: true })}
+          />
+        )}
+        {tab === 'chat' && <Chat project={project} readOnly={!writable} />}
+        {tab === 'settings' && <SettingsTab project={project} onUpdated={onSettingsUpdated} />}
       </div>
 
-      {reporting && <ReportModal projectId={id} onClose={() => setReporting(false)} />}
+      {reporting && <ReportModal project={project} onClose={() => setReporting(false)} />}
     </div>
   );
 }

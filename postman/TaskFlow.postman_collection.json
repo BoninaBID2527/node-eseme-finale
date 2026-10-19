@@ -1,20 +1,20 @@
 {
   "info": {
     "name": "TaskFlow API",
-    "description": "Collection di test per TaskFlow.\n\n1. Avvia il backend (npm run dev) e il database.\n2. Esegui `npm run seed` per creare l'admin (admin@taskflow.test / admin1234).\n3. Lancia la collection in ordine con il Runner: i token e gli id vengono salvati nelle variabili da soli.",
+    "description": "Collection di test per TaskFlow: tutte le funzionalità REST, con test automatici sui codici HTTP.\n\n1. Avvia MongoDB e il backend (`npm run dev` in backend/).\n2. Esegui `npm run seed` per creare l'amministratore (admin@taskflow.test / admin1234).\n3. Importa anche l'environment \"TaskFlow – locale\" e selezionalo.\n4. Lancia la collection **in ordine** con il Runner: token e id vengono salvati nelle variabili da soli.\n\nLe richieste che iniziano con ⚠ verificano i casi di errore (401, 403, 404, 409...).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:4000/api"
-    },
     {
       "key": "token",
       "value": ""
     },
     {
       "key": "token2",
+      "value": ""
+    },
+    {
+      "key": "token3",
       "value": ""
     },
     {
@@ -30,7 +30,15 @@
       "value": ""
     },
     {
+      "key": "thirdEmail",
+      "value": ""
+    },
+    {
       "key": "memberId",
+      "value": ""
+    },
+    {
+      "key": "thirdId",
       "value": ""
     },
     {
@@ -42,14 +50,72 @@
       "value": ""
     },
     {
+      "key": "invitationId",
+      "value": ""
+    },
+    {
       "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "reportId",
+      "value": ""
+    },
+    {
+      "key": "messageId",
       "value": ""
     }
   ],
   "item": [
     {
-      "name": "1. Auth",
+      "name": "1. Autenticazione e profilo",
+      "description": "",
       "item": [
+        {
+          "name": "⚠ Registrazione con dati non validi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"non-una-email\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errori per campo (name, email, password)\", () => pm.expect(json.errors && json.errors.name && json.errors.email && json.errors.password).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Registrazione (proprietario)",
           "request": {
@@ -87,9 +153,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('token', body.token);"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"la password non è nella risposta\", () => pm.expect(!JSON.stringify(json).includes(\"passwordHash\")).to.be.ok);",
+                  "pm.collectionVariables.set('token', json.token);"
                 ]
               }
             },
@@ -105,7 +172,50 @@
           ]
         },
         {
-          "name": "Registrazione (secondo utente)",
+          "name": "⚠ Registrazione con email già usata",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mario\",\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrazione (secondo utente: membro)",
           "request": {
             "method": "POST",
             "header": [
@@ -141,9 +251,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('token2', body.token);\npm.collectionVariables.set('memberId', body.user._id);"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token2', json.token);",
+                  "pm.collectionVariables.set('memberId', json.user._id);"
                 ]
               }
             },
@@ -153,6 +264,61 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.collectionVariables.set('memberEmail', 'member' + Date.now() + '@test.it');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrazione (terzo utente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Paolo Verdi\",\n  \"email\": \"{{thirdEmail}}\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token3', json.token);",
+                  "pm.collectionVariables.set('thirdId', json.user._id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('thirdEmail', 'third' + Date.now() + '@test.it');"
                 ]
               }
             }
@@ -195,16 +361,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('token', body.token);"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token', json.token);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Login admin (dopo npm run seed)",
+          "name": "⚠ Login con password errata",
           "request": {
             "method": "POST",
             "header": [
@@ -226,7 +392,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@taskflow.test\",\n  \"password\": \"admin1234\"\n}",
+              "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"sbagliata\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -240,9 +406,52 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('adminToken', body.token);"
+                  "pm.test('Codice HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login amministratore (dopo npm run seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', json.token);"
                 ]
               }
             }
@@ -276,7 +485,136 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"ruolo user\", () => pm.expect(json.user.role === \"user\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Profilo senza token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modifica nome del profilo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mario Rossi Jr\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"nome aggiornato\", () => pm.expect(json.user.name === \"Mario Rossi Jr\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Cambio password con password attuale errata",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"sbagliata\",\n  \"newPassword\": \"nuovapassword1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo currentPassword\", () => pm.expect(json.errors.currentPassword).to.be.ok);"
                 ]
               }
             }
@@ -285,8 +623,57 @@
       ]
     },
     {
-      "name": "2. Progetti",
+      "name": "2. Progetti e catalogo",
+      "description": "",
       "item": [
+        {
+          "name": "⚠ Creazione progetto senza titolo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Web\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo title\", () => pm.expect(json.errors.title).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Crea progetto",
           "request": {
@@ -313,7 +700,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Sito vetrina\",\n  \"description\": \"Rifacimento sito\",\n  \"category\": \"Web\",\n  \"technologies\": [\n    \"React\",\n    \"Node.js\"\n  ],\n  \"visibility\": \"public\"\n}",
+              "raw": "{\n  \"title\": \"Sito vetrina\",\n  \"description\": \"Rifacimento del sito di un negozio\",\n  \"category\": \"Web\",\n  \"technologies\": [\n    \"React\",\n    \"Node.js\"\n  ],\n  \"visibility\": \"public\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -327,9 +714,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('projectId', body.project._id);"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('projectId', json.project._id);"
                 ]
               }
             }
@@ -354,7 +741,7 @@
                 "projects"
               ]
             },
-            "description": "Scegli un'immagine nel campo \"cover\".",
+            "description": "Scegli un'immagine JPG/PNG/WebP/GIF (max 2 MB) nel campo \"cover\". Gli SVG vengono rifiutati.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -365,17 +752,17 @@
                 },
                 {
                   "key": "category",
-                  "value": "Web",
+                  "value": "Design",
                   "type": "text"
                 },
                 {
                   "key": "technologies",
-                  "value": "Vue,Express",
+                  "value": "Figma,CSS",
                   "type": "text"
                 },
                 {
                   "key": "visibility",
-                  "value": "public",
+                  "value": "private",
                   "type": "text"
                 },
                 {
@@ -393,14 +780,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Dettaglio progetto",
+          "name": "Dettaglio progetto (proprietario)",
           "request": {
             "method": "GET",
             "header": [
@@ -427,7 +814,78 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"isOwner true\", () => pm.expect(json.isOwner === true).to.be.ok);",
+                  "pm.test(\"statistiche presenti\", () => pm.expect(json.stats).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Dettaglio con id malformato",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "abc"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Dettaglio di un progetto inesistente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/64b7f0f4f4f4f4f4f4f4f4f4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "64b7f0f4f4f4f4f4f4f4f4f4"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -474,7 +932,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"titolo aggiornato\", () => pm.expect(json.project.title === \"Sito vetrina v2\").to.be.ok);"
                 ]
               }
             }
@@ -503,14 +963,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"elenco con paginazione\", () => pm.expect(Array.isArray(json.projects) && json.total >= 1 && json.pages >= 1).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Catalogo pubblico con filtri",
+          "name": "Catalogo con filtri, ordinamento e paginazione",
           "request": {
             "method": "GET",
             "header": [],
@@ -536,18 +998,33 @@
                 },
                 {
                   "key": "from",
-                  "value": "2026-01-01",
+                  "value": "2020-01-01",
                   "disabled": false
                 },
                 {
                   "key": "to",
-                  "value": "2030-12-31",
+                  "value": "2099-12-31",
                   "disabled": false
                 },
                 {
                   "key": "q",
                   "value": "sito",
-                  "disabled": true
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "recent",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "9",
+                  "disabled": false
                 }
               ]
             },
@@ -559,20 +1036,138 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"trova il progetto creato\", () => pm.expect(json.projects.some(p => p._id === pm.collectionVariables.get(\"projectId\"))).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Archivia progetto",
+          "name": "⚠ Catalogo con ordinamento non valido",
           "request": {
-            "method": "PATCH",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "public"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "boh",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Categorie e tecnologie disponibili per i filtri",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/public/filters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "public",
+                "filters"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"categorie\", () => pm.expect(json.categories.length >= 1).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I miei progetti",
+          "request": {
+            "method": "GET",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "owner",
+                  "disabled": false
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"con avanzamento\", () => pm.expect(json.projects[0].progress).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Modifica da un utente che non è il proprietario",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
               },
               {
                 "key": "Content-Type",
@@ -580,20 +1175,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/projects/{{projectId}}/archive",
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "projects",
-                "{{projectId}}",
-                "archive"
+                "{{projectId}}"
               ]
             },
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"archived\": true\n}",
+              "raw": "{\n  \"title\": \"Hack\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -607,55 +1201,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Riattiva progetto",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/projects/{{projectId}}/archive",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "archive"
-              ]
-            },
-            "description": "",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"archived\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
                 ]
               }
             }
@@ -664,10 +1210,59 @@
       ]
     },
     {
-      "name": "3. Membri",
+      "name": "3. Inviti e membri",
+      "description": "",
       "item": [
         {
-          "name": "Invita membro (per email)",
+          "name": "⚠ Invito da chi non è proprietario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{thirdEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Invito a un'email sconosciuta",
           "request": {
             "method": "POST",
             "header": [
@@ -681,14 +1276,64 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/projects/{{projectId}}/members",
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "projects",
                 "{{projectId}}",
-                "members"
+                "invitations"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nessuno@esempio.it\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo email\", () => pm.expect(json.errors.email).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invita un utente (membro)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations"
               ]
             },
             "description": "",
@@ -708,14 +1353,242 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"invito in attesa\", () => pm.expect(json.invitation.status === \"pending\").to.be.ok);",
+                  "pm.collectionVariables.set('invitationId', json.invitation._id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Dettaglio progetto come membro",
+          "name": "⚠ Secondo invito in attesa per lo stesso utente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inviti in attesa del progetto",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"almeno un invito\", () => pm.expect(json.invitations.length >= 1).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Prima di accettare il membro non ha accesso",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inviti ricevuti dall'utente invitato",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invitations"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"invito presente\", () => pm.expect(json.invitations.some(i => i._id === pm.collectionVariables.get(\"invitationId\"))).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Un altro utente non può accettare l'invito",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invitations",
+                "{{invitationId}}",
+                "accept"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accetta l'invito (il membro entra)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invitations",
+                "{{invitationId}}",
+                "accept"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dettaglio come membro (vede le email dei compagni)",
           "request": {
             "method": "GET",
             "header": [
@@ -742,20 +1615,60 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"isMember true\", () => pm.expect(json.isMember === true).to.be.ok);",
+                  "pm.test(\"email visibile ai membri\", () => pm.expect(json.project.owner.email).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Invito vietato al non proprietario → 403",
+          "name": "Dettaglio come estraneo (solo nomi, niente email)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"isMember false\", () => pm.expect(json.isMember === false).to.be.ok);",
+                  "pm.test(\"nessuna email\", () => pm.expect(json.project.owner.email === undefined).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Terzo utente: invito...",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{token2}}"
+                "value": "Bearer {{token}}"
               },
               {
                 "key": "Content-Type",
@@ -763,20 +1676,20 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/projects/{{projectId}}/members",
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "projects",
                 "{{projectId}}",
-                "members"
+                "invitations"
               ]
             },
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{ownerEmail}}\"\n}",
+              "raw": "{\n  \"email\": \"{{thirdEmail}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -790,7 +1703,130 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('invitationId', json.invitation._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "...rifiutato dal destinatario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invitations",
+                "{{invitationId}}",
+                "decline"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "...nuovo invito...",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{thirdEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('invitationId', json.invitation._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "...annullato dal proprietario",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -800,7 +1836,156 @@
     },
     {
       "name": "4. Task e bacheca",
+      "description": "",
       "item": [
+        {
+          "name": "⚠ Creazione task da un estraneo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Creazione task con dati non validi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority\": \"urgente\",\n  \"dueDate\": \"ieri\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errori per campo\", () => pm.expect(json.errors.title && json.errors.priority && json.errors.dueDate).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Task assegnato a chi non è membro",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"x\",\n  \"assignee\": \"{{thirdId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo assignee\", () => pm.expect(json.errors.assignee).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Crea task assegnato al membro",
           "request": {
@@ -843,22 +2028,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('taskId', body.task._id);"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato iniziale todo\", () => pm.expect(json.task.status === \"todo\").to.be.ok);",
+                  "pm.collectionVariables.set('taskId', json.task._id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Lista task",
+          "name": "Lista dei task (membro)",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "value": "Bearer {{token2}}"
               }
             ],
             "url": {
@@ -880,7 +2066,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"task presente\", () => pm.expect(json.tasks.some(t => t._id === pm.collectionVariables.get(\"taskId\"))).to.be.ok);"
                 ]
               }
             }
@@ -893,7 +2081,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "value": "Bearer {{token2}}"
               },
               {
                 "key": "Content-Type",
@@ -929,14 +2117,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Sposta task in \"In corso\"",
+          "name": "Sposta il task in \"In corso\"",
           "request": {
             "method": "PATCH",
             "header": [
@@ -979,14 +2167,66 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato in_progress\", () => pm.expect(json.task.status === \"in_progress\").to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Riassegna task",
+          "name": "⚠ Spostamento con stato non valido",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "status"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"boh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Riassegna il task al proprietario",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1029,32 +2269,54 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"senza assegnatario\", () => pm.expect(json.task.assignee === null).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Elimina task",
+          "name": "I miei task (con filtri)",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "value": "Bearer {{token2}}"
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}",
+              "raw": "{{baseUrl}}/tasks/mine",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "projects",
-                "{{projectId}}",
                 "tasks",
-                "{{taskId}}"
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open",
+                  "disabled": false
+                },
+                {
+                  "key": "due",
+                  "value": "all",
+                  "disabled": false
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                }
               ]
             },
             "description": ""
@@ -1065,7 +2327,99 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"struttura paginata\", () => pm.expect(Array.isArray(json.tasks) && json.pages >= 1).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ I miei task con filtro non valido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "due",
+                  "value": "boh",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Task inesistente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/64b7f0f4f4f4f4f4f4f4f4f4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "64b7f0f4f4f4f4f4f4f4f4f4"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -1075,9 +2429,10 @@
     },
     {
       "name": "5. Chat",
+      "description": "",
       "item": [
         {
-          "name": "Invia messaggio",
+          "name": "Invia un messaggio (membro)",
           "request": {
             "method": "POST",
             "header": [
@@ -1118,14 +2473,66 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('messageId', json.message._id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Leggi messaggi",
+          "name": "⚠ Messaggio vuoto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "messages"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo text\", () => pm.expect(json.errors.text).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ultimi messaggi",
           "request": {
             "method": "GET",
             "header": [
@@ -1153,7 +2560,92 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"messaggio presente\", () => pm.expect(json.messages.some(m => m._id === pm.collectionVariables.get(\"messageId\"))).to.be.ok);",
+                  "pm.test(\"flag hasMore\", () => pm.expect(json.hasMore === false).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Messaggi precedenti (cursore \"before\")",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "before",
+                  "value": "{{messageId}}",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "30",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ La chat è riservata ai membri",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "messages"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
                 ]
               }
             }
@@ -1163,6 +2655,7 @@
     },
     {
       "name": "6. Dashboard e notifiche",
+      "description": "",
       "item": [
         {
           "name": "Dashboard personale",
@@ -1191,14 +2684,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"statistiche\", () => pm.expect(json.stats && typeof json.stats.openTasks === \"number\").to.be.ok);",
+                  "pm.test(\"task scaduti e prossimi separati\", () => pm.expect(Array.isArray(json.overdue) && Array.isArray(json.upcoming)).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Lista notifiche",
+          "name": "Elenco notifiche",
           "request": {
             "method": "GET",
             "header": [
@@ -1214,6 +2710,13 @@
               ],
               "path": [
                 "notifications"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                }
               ]
             },
             "description": ""
@@ -1224,16 +2727,53 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "if (body.notifications.length) pm.collectionVariables.set('notificationId', body.notifications[0]._id);"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"notifiche presenti\", () => pm.expect(json.notifications.length >= 1).to.be.ok);",
+                  "pm.collectionVariables.set('notificationId', json.notifications[0]._id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Segna notifica come letta",
+          "name": "Conteggio non lette",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"numero\", () => pm.expect(typeof json.unread === \"number\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Segna una notifica come letta",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1261,7 +2801,44 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"letta\", () => pm.expect(json.notification.read === true).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Notifica di un altro utente",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -1295,7 +2872,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -1304,16 +2881,352 @@
       ]
     },
     {
-      "name": "7. Segnalazioni e admin",
+      "name": "7. Archiviazione (sola lettura)",
+      "description": "",
       "item": [
         {
-          "name": "Segnala progetto",
+          "name": "Archivia il progetto",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "archive"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"archived\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato archived\", () => pm.expect(json.project.status === \"archived\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Un progetto archiviato rifiuta nuovi task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ ...e nuovi messaggi",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "messages"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "...ma resta consultabile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Riattiva il progetto",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "archive"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"archived\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato active\", () => pm.expect(json.project.status === \"active\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Segnalazioni e amministrazione",
+      "description": "",
+      "item": [
+        {
+          "name": "⚠ Segnalazione senza motivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "report"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo reason\", () => pm.expect(json.errors.reason).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Non si può segnalare un proprio progetto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "report"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Il mio stesso progetto\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Segnala il progetto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
               },
               {
                 "key": "Content-Type",
@@ -1348,20 +3261,70 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato open\", () => pm.expect(json.report.status === \"open\").to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: lista segnalazioni",
+          "name": "⚠ Segnalazione duplicata (ancora aperta)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "report"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Di nuovo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Rotta admin da utente normale",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -1382,30 +3345,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: lista utenti",
+          "name": "⚠ Rotta admin senza token",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/admin/users",
+              "raw": "{{baseUrl}}/admin/reports",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "admin",
-                "users"
+                "reports"
               ]
             },
             "description": ""
@@ -1416,14 +3374,240 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 401', () => pm.response.to.have.status(401));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: nascondi progetto",
+          "name": "Admin: statistiche",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"segnalazioni aperte\", () => pm.expect(json.openReports >= 1).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: segnalazioni da esaminare",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"con progetto e autore\", () => pm.expect(json.reports[0].project && json.reports[0].reporter).to.be.ok);",
+                  "pm.collectionVariables.set('reportId', json.reports.find(r => r.project && r.project._id === pm.collectionVariables.get(\"projectId\"))._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: archivia la segnalazione senza azioni",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports",
+                "{{reportId}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"dismissed\",\n  \"note\": \"Tutto regolare\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"archiviata\", () => pm.expect(json.report.status === \"dismissed\").to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Segnala di nuovo (la precedente è chiusa)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "report"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Nuova segnalazione\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: elenco progetti",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "disabled": false
+                },
+                {
+                  "key": "q",
+                  "value": "Sito",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"con segnalazioni aperte\", () => pm.expect(json.projects[0].openReports >= 0).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: oscura il progetto",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1465,14 +3649,88 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato hidden\", () => pm.expect(json.project.status === \"hidden\").to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: riattiva progetto",
+          "name": "⚠ Il membro non ha più accesso al progetto oscurato",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Il progetto oscurato non è nel catalogo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "public"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Sito vetrina v2",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"assente\", () => pm.expect(json.projects.length === 0).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: rende di nuovo visibile il progetto",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1514,14 +3772,64 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"stato active\", () => pm.expect(json.project.status === \"active\").to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: blocca utente",
+          "name": "Admin: elenco utenti",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "third",
+                  "disabled": false
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"utente trovato\", () => pm.expect(json.users.length >= 1).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: blocca un utente",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1535,14 +3843,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/admin/users/{{memberId}}/block",
+              "raw": "{{baseUrl}}/admin/users/{{thirdId}}/block",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "admin",
                 "users",
-                "{{memberId}}",
+                "{{thirdId}}",
                 "block"
               ]
             },
@@ -1563,14 +3871,93 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"bloccato\", () => pm.expect(json.user.blocked === true).to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Admin: sblocca utente",
+          "name": "⚠ L'utente bloccato non può più usare il token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ ...né accedere",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{thirdEmail}}\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: sblocca l'utente",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1584,14 +3971,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/admin/users/{{memberId}}/block",
+              "raw": "{{baseUrl}}/admin/users/{{thirdId}}/block",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "admin",
                 "users",
-                "{{memberId}}",
+                "{{thirdId}}",
                 "block"
               ]
             },
@@ -1612,16 +3999,22 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "9. Pulizia e sessione",
+      "description": "",
+      "item": [
         {
-          "name": "Rotta admin da utente normale → 403",
+          "name": "Elimina il task",
           "request": {
-            "method": "GET",
+            "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
@@ -1629,13 +4022,15 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/admin/reports",
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "admin",
-                "reports"
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}"
               ]
             },
             "description": ""
@@ -1646,19 +4041,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "8. Cleanup",
-      "item": [
+        },
         {
-          "name": "Rimuovi membro",
+          "name": "Rimuovi il membro dal progetto",
           "request": {
             "method": "DELETE",
             "header": [
@@ -1687,14 +4077,83 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Elimina progetto",
+          "name": "⚠ Il membro rimosso non ha più accesso",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Elimina il progetto: vietato ai non proprietari",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Elimina il progetto (proprietario)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -1721,7 +4180,139 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Il progetto eliminato non esiste più",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambio password: nuova password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"password4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token', json.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambio password: ripristino",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password4567\",\n  \"newPassword\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token', json.token);"
                 ]
               }
             }
@@ -1755,14 +4346,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Dopo il logout il token non vale → 401",
+          "name": "⚠ Dopo il logout il token non vale più",
           "request": {
             "method": "GET",
             "header": [
@@ -1789,7 +4380,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                  "pm.test('Codice HTTP 401', () => pm.response.to.have.status(401));"
                 ]
               }
             }

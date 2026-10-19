@@ -10,6 +10,7 @@ function errorHandler(err, req, res, next) {
   if (err.status) {
     const body = { message: err.message };
     if (err.fields) body.errors = err.fields;
+    if (err.code) body.code = err.code;
     return res.status(err.status).json(body);
   }
 

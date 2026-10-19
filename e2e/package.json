@@ -1,0 +1,14 @@
+{
+  "name": "taskflow-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Test end-to-end di TaskFlow (Playwright + axe-core)",
+  "type": "module",
+  "scripts": {
+    "test": "node e2e.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.0",
+    "playwright": "^1.50.0"
+  }
+}

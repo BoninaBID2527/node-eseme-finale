@@ -1,17 +1,59 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import NotificationBell from './NotificationBell';
+import { useRealtime } from '../context/RealtimeContext';
+import useMediaQuery from '../hooks/useMediaQuery';
 import Avatar from './Avatar';
+import Icon from './Icon';
+import Logo from './Logo';
 
-const Icon = ({ d }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
+function NavItem({ to, icon, label, badge, end }) {
+  return (
+    <NavLink to={to} end={end} className="nav-item">
+      <Icon name={icon} size={19} />
+      <span>{label}</span>
+      {badge > 0 && (
+        <span className="nav-badge" aria-label={`${badge} non lette`}>
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </NavLink>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { unread, connected } = useRealtime();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useMediaQuery('(max-width: 900px)');
+  const [open, setOpen] = useState(false);
+  const mainRef = useRef(null);
+  const menuButtonRef = useRef(null);
+
+  // Ad ogni cambio pagina: chiude il menu mobile e porta il focus sul contenuto (utile con tastiera e screen reader).
+  useEffect(() => {
+    setOpen(false);
+    window.scrollTo(0, 0);
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
+  // Menu mobile: Esc per chiudere e scroll della pagina bloccato mentre è aperto.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
 
   const handleLogout = async () => {
     await logout();
@@ -20,64 +62,93 @@ export default function Layout() {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <NavLink to="/" className="brand">
-            <span className="brand-mark">✓</span> TaskFlow
-          </NavLink>
-          {user && <NotificationBell />}
-        </div>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
+        Vai al contenuto
+      </a>
 
-        <nav className="nav">
-          <NavLink to="/catalog">
-            <Icon d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /> Catalogo
-          </NavLink>
+      <header className="topbar">
+        <Link to="/" aria-label="TaskFlow, pagina iniziale">
+          <Logo size={28} />
+        </Link>
+        <div className="topbar-actions">
           {user && (
-            <NavLink to="/dashboard">
-              <Icon d="M3 12l9-9 9 9M5 10v10h14V10" /> Dashboard
-            </NavLink>
+            <Link to="/notifications" className="icon-btn icon-btn-dark topbar-bell" aria-label={`Notifiche${unread ? `, ${unread} non lette` : ''}`}>
+              <Icon name="bell" size={20} />
+              {unread > 0 && <span className="dot-count">{unread > 9 ? '9+' : unread}</span>}
+            </Link>
           )}
-          {user?.role === 'admin' && (
-            <NavLink to="/admin">
-              <Icon d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> Admin
-            </NavLink>
-          )}
-        </nav>
+          <button
+            ref={menuButtonRef}
+            className="icon-btn icon-btn-dark"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-controls="sidebar"
+            aria-label={open ? 'Chiudi il menu' : 'Apri il menu'}
+          >
+            <Icon name={open ? 'x' : 'menu'} size={22} />
+          </button>
+        </div>
+      </header>
+
+      <div className={`sidebar-backdrop${open ? ' is-open' : ''}`} onClick={() => setOpen(false)} aria-hidden="true" />
+
+      <aside id="sidebar" className={`sidebar${open ? ' is-open' : ''}`} aria-label="Barra laterale" inert={isMobile && !open ? true : undefined}>
+        <Link to="/" className="sidebar-logo" aria-label="TaskFlow, pagina iniziale">
+          <Logo size={34} />
+        </Link>
 
         {user && (
-          <button className="btn btn-primary sidebar-cta" onClick={() => navigate('/projects/new')}>
-            + Nuovo progetto
+          <button className="btn btn-primary btn-block sidebar-cta" onClick={() => navigate('/projects/new')}>
+            <Icon name="plus" size={18} /> Nuovo progetto
           </button>
         )}
 
-        <div className="sidebar-bottom">
+        <nav className="nav" aria-label="Navigazione principale">
+          {user && <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />}
+          <NavItem to="/catalog" icon="compass" label="Catalogo" />
+          {user && (
+            <>
+              <NavItem to="/projects" icon="folder" label="I miei progetti" end />
+              <NavItem to="/tasks" icon="tasks" label="I miei task" />
+              <NavItem to="/notifications" icon="bell" label="Notifiche" badge={unread} />
+            </>
+          )}
+          {user?.role === 'admin' && <NavItem to="/admin" icon="shield" label="Amministrazione" />}
+        </nav>
+
+        <div className="sidebar-foot">
           {user ? (
             <>
-              <div className="me">
-                <Avatar name={user.name} size={34} />
-                <div>
+              <span className={`live${connected ? ' is-on' : ''}`} role="status">
+                <Icon name={connected ? 'wifi' : 'wifi-off'} size={14} />
+                {connected ? 'Aggiornamenti live attivi' : 'Riconnessione in corso…'}
+              </span>
+              <NavLink to="/profile" className="me">
+                <Avatar name={user.name} size={36} />
+                <span className="me-text">
                   <strong>{user.name}</strong>
-                  <small>{user.role === 'admin' ? 'Amministratore' : 'Utente'}</small>
-                </div>
-              </div>
-              <button className="link-btn" onClick={handleLogout}>
-                Esci
+                  <small>{user.role === 'admin' ? 'Amministratore' : 'Profilo'}</small>
+                </span>
+              </NavLink>
+              <button className="nav-item nav-logout" onClick={handleLogout}>
+                <Icon name="logout" size={19} />
+                <span>Esci</span>
               </button>
             </>
           ) : (
             <div className="auth-links">
-              <NavLink className="btn btn-primary" to="/login">
+              <Link className="btn btn-primary btn-block" to="/login">
                 Accedi
-              </NavLink>
-              <NavLink className="btn" to="/register">
+              </Link>
+              <Link className="btn btn-dark-ghost btn-block" to="/register">
                 Registrati
-              </NavLink>
+              </Link>
             </div>
           )}
         </div>
       </aside>
 
-      <main className="main">
+      <main id="main" className="main" ref={mainRef} tabIndex={-1}>
         <Outlet />
       </main>
     </div>

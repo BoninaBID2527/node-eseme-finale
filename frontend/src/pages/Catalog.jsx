@@ -1,87 +1,155 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, toQuery } from '../api';
+import Icon from '../components/Icon';
+import Pagination from '../components/Pagination';
 import ProjectCard from '../components/ProjectCard';
-import { CATEGORIES } from '../utils';
+import { GridSkeleton } from '../components/Skeleton';
+import { EmptyState, ErrorState } from '../components/StateMessage';
+import { useAuth } from '../context/AuthContext';
+import useAsync from '../hooks/useAsync';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import useDocumentTitle from '../hooks/useDocumentTitle';
+import useUrlFilters from '../hooks/useUrlFilters';
 
-const EMPTY_FILTERS = { q: '', category: '', technology: '', from: '', to: '' };
+const DEFAULTS = { q: '', category: '', technology: '', from: '', to: '', sort: 'recent', page: '1' };
+const PAGE_SIZE = 9;
 
 export default function Catalog() {
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [projects, setProjects] = useState(null);
-  const [error, setError] = useState('');
+  useDocumentTitle('Catalogo');
+  const { user } = useAuth();
+  const { filters, setFilter, reset, active } = useUrlFilters(DEFAULTS);
 
-  // Ricarica il catalogo ad ogni cambio di filtro (con una breve attesa mentre si scrive).
+  // La ricerca testuale viene inviata al server solo quando si smette di scrivere.
+  const [text, setText] = useState(filters.q);
+  const debouncedText = useDebouncedValue(text, 300);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      api
-        .get(`/projects/public${toQuery(filters)}`)
-        .then((data) => {
-          setProjects(data.projects);
-          setError('');
-        })
-        .catch((err) => setError(err.message));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [filters]);
+    if (debouncedText !== filters.q) setFilter('q', debouncedText);
+  }, [debouncedText]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Il testo si allinea all'URL solo per cambi esterni (azzera, tasto Indietro), mai mentre si sta scrivendo.
+  useEffect(() => {
+    if (filters.q !== debouncedText) setText(filters.q);
+  }, [filters.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const update = (field) => (e) => setFilters({ ...filters, [field]: e.target.value });
-  const hasFilters = Object.values(filters).some(Boolean);
+  const query = toQuery({ ...filters, page: filters.page === '1' ? '' : filters.page, limit: PAGE_SIZE });
+  const { data, loading, error, reload } = useAsync(() => api.get(`/projects/public${query}`), [query]);
+  const facets = useAsync(() => api.get('/projects/public/filters'), []);
+
+  const invalidRange = filters.from && filters.to && filters.from > filters.to;
 
   return (
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Catalogo progetti</h1>
-          <p className="muted">Scopri i progetti aperti e trova un team in cui entrare.</p>
+          <h1 className="page-title">Catalogo progetti</h1>
+          <p className="page-lead">
+            Esplora i progetti pubblici: cerca per tema o tecnologia e trova il team giusto. Per entrare in un progetto chiedi un invito al suo proprietario.
+          </p>
         </div>
+        {user ? (
+          <Link to="/projects/new" className="btn btn-primary">
+            <Icon name="plus" size={18} /> Nuovo progetto
+          </Link>
+        ) : (
+          <Link to="/register" className="btn btn-primary">
+            Crea un account
+          </Link>
+        )}
       </header>
 
-      <div className="filters card">
-        <label className="grow">
-          Cerca
-          <input type="search" placeholder="Titolo o descrizione" value={filters.q} onChange={update('q')} />
-        </label>
-        <label>
-          Categoria
-          <select value={filters.category} onChange={update('category')}>
+      <section className="filters card" aria-label="Filtri del catalogo">
+        <div className="field filters-search">
+          <label htmlFor="catalog-q">Cerca</label>
+          <div className="search">
+            <Icon name="search" size={18} />
+            <input id="catalog-q" type="search" placeholder="Titolo o descrizione" value={text} onChange={(e) => setText(e.target.value)} />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="catalog-category">Categoria</label>
+          <select id="catalog-category" value={filters.category} onChange={(e) => setFilter('category', e.target.value)}>
             <option value="">Tutte</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+            {facets.data?.categories.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} ({c.count})
+              </option>
             ))}
           </select>
-        </label>
-        <label>
-          Tecnologia
-          <input placeholder="es. React" value={filters.technology} onChange={update('technology')} />
-        </label>
-        <label>
-          Creati dal
-          <input type="date" value={filters.from} onChange={update('from')} />
-        </label>
-        <label>
-          al
-          <input type="date" value={filters.to} onChange={update('to')} />
-        </label>
-        {hasFilters && (
-          <button className="btn" onClick={() => setFilters(EMPTY_FILTERS)}>
-            Azzera
+        </div>
+        <div className="field">
+          <label htmlFor="catalog-tech">Tecnologia</label>
+          <select id="catalog-tech" value={filters.technology} onChange={(e) => setFilter('technology', e.target.value)}>
+            <option value="">Tutte</option>
+            {facets.data?.technologies.map((t) => (
+              <option key={t.name} value={t.name}>
+                {t.name} ({t.count})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="catalog-from">Creati dal</label>
+          <input id="catalog-from" type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => setFilter('from', e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="catalog-to">Fino al</label>
+          <input id="catalog-to" type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => setFilter('to', e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="catalog-sort">Ordina per</label>
+          <select id="catalog-sort" value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)}>
+            <option value="recent">Più recenti</option>
+            <option value="oldest">Meno recenti</option>
+            <option value="title">Titolo (A–Z)</option>
+          </select>
+        </div>
+      </section>
+
+      <div className="results-bar">
+        <p aria-live="polite" role="status">
+          {data ? (
+            <>
+              <strong className="tabular">{data.total}</strong> {data.total === 1 ? 'progetto' : 'progetti'}
+              {active > 0 && ' con i filtri scelti'}
+            </>
+          ) : (
+            ' '
+          )}
+        </p>
+        {active > 0 && (
+          <button className="btn btn-sm" onClick={() => { reset(); setText(''); }}>
+            <Icon name="x" size={14} /> Azzera i filtri ({active})
           </button>
         )}
       </div>
+      {invalidRange && <p className="form-alert">La data iniziale è successiva a quella finale: non verrà trovato nessun progetto.</p>}
 
-      {error && <p className="form-error">{error}</p>}
-      {!projects && !error && <p className="muted">Caricamento…</p>}
-      {projects && projects.length === 0 && (
-        <div className="empty card">
-          <h3>Nessun progetto trovato</h3>
-          <p className="muted">{hasFilters ? 'Prova a cambiare i filtri.' : 'Non ci sono ancora progetti pubblici.'}</p>
-        </div>
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {!error && !data && <GridSkeleton count={PAGE_SIZE} />}
+      {!error && data && data.projects.length === 0 && (
+        <EmptyState
+          icon="search"
+          title="Nessun progetto trovato"
+          text={active > 0 ? 'Prova a cambiare o azzerare i filtri.' : 'Non ci sono ancora progetti pubblici. Crea il primo!'}
+          action={
+            active > 0 ? (
+              <button className="btn" onClick={() => { reset(); setText(''); }}>Azzera i filtri</button>
+            ) : (
+              <Link className="btn btn-primary" to={user ? '/projects/new' : '/register'}>{user ? 'Crea un progetto' : 'Crea un account'}</Link>
+            )
+          }
+        />
       )}
-      <div className="grid">
-        {projects?.map((p) => (
-          <ProjectCard key={p._id} project={p} />
-        ))}
-      </div>
+      {!error && data && data.projects.length > 0 && (
+        <>
+          <div className="grid" aria-busy={loading} style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 150ms' }}>
+            {data.projects.map((p) => (
+              <ProjectCard key={p._id} project={p} />
+            ))}
+          </div>
+          <Pagination page={data.page} pages={data.pages} onChange={(p) => setFilter('page', String(p))} />
+        </>
+      )}
     </div>
   );
 }

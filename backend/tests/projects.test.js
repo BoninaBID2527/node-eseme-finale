@@ -127,6 +127,15 @@ describe('Copertine', () => {
     expect(svg.status).toBe(400);
     expect(svg.body.errors.cover).toBeDefined();
 
+    // Un file qualsiasi che si finge PNG viene rifiutato (si controllano i primi byte) e non resta sul disco.
+    const fake = await request(app)
+      .post('/api/projects')
+      .set(authed(owner.token))
+      .field('title', 'Falso')
+      .attach('cover', Buffer.from('questo non è un png'), { filename: 'f.png', contentType: 'image/png' });
+    expect(fake.status).toBe(400);
+    expect(fake.body.errors.cover).toBeDefined();
+
     const removed = await request(app).put(`/api/projects/${ok.body.project._id}`).set(authed(owner.token)).field('removeCover', 'true');
     expect(removed.body.project.coverImage).toBe('');
     expect((await request(app).get(ok.body.project.coverImage)).status).toBe(404);

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import Avatar from '../components/Avatar';
-import { ProjectStatusBadge, VisibilityLabel } from '../components/Badges';
+import { ProgressBar, ProjectStatusBadge, VisibilityLabel } from '../components/Badges';
 import Board from '../components/Board';
 import Chat from '../components/Chat';
 import Icon from '../components/Icon';
@@ -32,6 +32,11 @@ export default function ProjectPage() {
   const { resyncKey } = useRealtime();
   const [params, setParams] = useSearchParams();
   const [reporting, setReporting] = useState(false);
+  // Messaggi di chat arrivati in tempo reale mentre si guardava un'altra scheda (solo in questa sessione del browser:
+  // il server non tiene traccia delle letture, quindi non si mostra nulla di più di ciò che si è davvero visto arrivare).
+  const [unread, setUnread] = useState({ count: 0, firstId: null });
+  const [newFrom, setNewFrom] = useState(null);
+  const tabRef = useRef(null);
 
   const { data, error, reload, setData } = useAsync(() => api.get(`/projects/${id}`), [id]);
   const project = data?.project;
@@ -75,16 +80,28 @@ export default function ProjectPage() {
 
   // ---- Schede disponibili in base ai permessi ----
   const tabs = useMemo(() => {
-    const list = [{ id: 'overview', label: 'Panoramica' }];
-    if (isMember) list.push({ id: 'board', label: 'Bacheca', count: tasksApi.tasks?.length });
-    list.push({ id: 'members', label: 'Membri', count: project ? project.members.length + 1 : undefined });
-    if (isMember) list.push({ id: 'chat', label: 'Chat' });
-    if (isOwner) list.push({ id: 'settings', label: 'Impostazioni' });
+    const list = [{ id: 'overview', label: 'Panoramica', icon: 'dashboard' }];
+    if (isMember) list.push({ id: 'board', label: 'Bacheca', icon: 'board', count: tasksApi.tasks?.length });
+    list.push({ id: 'members', label: 'Membri', icon: 'users', count: project ? project.members.length + 1 : undefined });
+    if (isMember) list.push({ id: 'chat', label: 'Chat', icon: 'message', count: unread.count || undefined, alert: unread.count > 0 });
+    if (isOwner) list.push({ id: 'settings', label: 'Impostazioni', icon: 'sliders' });
     return list;
-  }, [isMember, isOwner, project, tasksApi.tasks]);
+  }, [isMember, isOwner, project, tasksApi.tasks, unread.count]);
 
   const requested = params.get('tab');
   const tab = tabs.some((t) => t.id === requested) ? requested : isMember ? 'board' : 'overview';
+  tabRef.current = tab;
+  useSocketEvent('chat:message', useCallback((m) => {
+    if (m.project !== id || tabRef.current === 'chat' || m.author?._id === user._id) return;
+    setUnread((u) => ({ count: u.count + 1, firstId: u.firstId || m._id }));
+  }, [id, user._id]));
+  // Aprendo la chat l'avviso si azzera; il separatore "Nuovi messaggi" resta finché la si guarda.
+  useEffect(() => {
+    if (tab === 'chat') {
+      setNewFrom(unread.firstId);
+      setUnread({ count: 0, firstId: null });
+    } else setNewFrom(null);
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const setTab = (next) => setParams((prev) => { const p = new URLSearchParams(prev); p.set('tab', next); p.delete('task'); return p; }, { replace: true });
   const clearTaskParam = useCallback(() => setParams((prev) => { const p = new URLSearchParams(prev); p.delete('task'); return p; }, { replace: true }), [setParams]);
 
@@ -128,9 +145,9 @@ export default function ProjectPage() {
   if (!project) {
     return (
       <div className="page" aria-busy="true">
-        <Skeleton height={150} width="100%" radius={12} />
+        <Skeleton height={260} width="100%" radius={16} />
         <div style={{ height: 24 }} />
-        <Skeleton height={300} width="100%" radius={12} />
+        <Skeleton height={300} width="100%" radius={16} />
       </div>
     );
   }
@@ -154,36 +171,49 @@ export default function ProjectPage() {
       )}
 
       <header className="project-head">
-        <ProjectCover project={project} className="project-head-cover" />
-        <div className="project-head-info">
-          <div className="project-card-meta">
-            <span className="eyebrow">{project.category}</span>
-            <VisibilityLabel visibility={project.visibility} />
-            <ProjectStatusBadge status={project.status} />
+        <ProjectCover project={project} className="project-head-cover" wide />
+        <div className="project-head-body">
+          <div className="project-head-main">
+            <div className="project-head-meta">
+              <span className="eyebrow is-marked">{project.category}</span>
+              <VisibilityLabel visibility={project.visibility} />
+              <ProjectStatusBadge status={project.status} />
+            </div>
+            <h1>{project.title}</h1>
+            <div className="project-head-people">
+              <ul className="avatar-stack" aria-label="Membri">
+                {people.slice(0, 5).map((p) => (
+                  <li key={p._id}><Avatar name={p.name} size={32} /></li>
+                ))}
+                {people.length > 5 && <li className="avatar-more" aria-label={`altre ${people.length - 5} persone`}>+{people.length - 5}</li>}
+              </ul>
+              <span className="muted">
+                di <strong>{project.owner.name}</strong> · {people.length} {people.length === 1 ? 'persona' : 'persone'}
+              </span>
+            </div>
           </div>
-          <h1>{project.title}</h1>
-          <div className="project-head-people">
-            <ul className="avatar-stack" aria-label="Membri">
-              {people.slice(0, 5).map((p) => (
-                <li key={p._id}><Avatar name={p.name} size={30} /></li>
-              ))}
-            </ul>
-            <span className="muted">
-              di <strong>{project.owner.name}</strong> · {people.length} {people.length === 1 ? 'persona' : 'persone'}
-            </span>
+          <div className="project-head-side">
+            {isMember && tasksApi.tasks && tasksApi.tasks.length > 0 && (
+              <div className="project-head-progress">
+                <span className="eyebrow">Avanzamento</span>
+                <ProgressBar done={tasksApi.tasks.filter((t) => t.status === 'done').length} total={tasksApi.tasks.length} />
+              </div>
+            )}
+            {(!isOwner || isAdmin) && (
+              <div className="project-head-actions">
+                {!isOwner && (
+                  <button className="btn btn-sm" onClick={() => setReporting(true)}>
+                    <Icon name="flag" size={16} /> Segnala
+                  </button>
+                )}
+                {isAdmin && (
+                  <button className="btn btn-sm btn-dark" onClick={toggleHidden}>
+                    <Icon name={project.status === 'hidden' ? 'eye' : 'eye-off'} size={16} /> {project.status === 'hidden' ? 'Rendi visibile' : 'Oscura'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-        <div className="project-head-actions">
-          {!isOwner && (
-            <button className="btn" onClick={() => setReporting(true)}>
-              <Icon name="flag" size={16} /> Segnala
-            </button>
-          )}
-          {isAdmin && (
-            <button className="btn btn-dark" onClick={toggleHidden}>
-              <Icon name={project.status === 'hidden' ? 'eye' : 'eye-off'} size={16} /> {project.status === 'hidden' ? 'Rendi visibile' : 'Oscura'}
-            </button>
-          )}
         </div>
       </header>
 
@@ -211,7 +241,7 @@ export default function ProjectPage() {
             onChanged={() => reload({ silent: true })}
           />
         )}
-        {tab === 'chat' && <Chat project={project} readOnly={!writable} />}
+        {tab === 'chat' && <Chat project={project} readOnly={!writable} newFrom={newFrom} />}
         {tab === 'settings' && <SettingsTab project={project} onUpdated={onSettingsUpdated} />}
       </div>
 

@@ -1,27 +1,25 @@
-// Logo TaskFlow: tre barre sfalsate, come i passi di un flusso di lavoro che avanza da sinistra a destra
-// (da fare → in corso → completato). Funziona in colore (tassello giallo) e in monocromia (solo barre).
-export function LogoMark({ size = 32, tone = 'color', className = '' }) {
-  return (
-    <svg className={`logo-mark ${className}`} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      {tone === 'color' && <rect width="32" height="32" rx="9" fill="#FFD600" />}
-      <g fill={tone === 'color' ? '#101010' : 'currentColor'}>
-        <rect x="6" y="7" width="9" height="4" rx="2" />
-        <rect x="11" y="14" width="11" height="4" rx="2" />
-        <rect x="17" y="21" width="9" height="4" rx="2" />
-      </g>
-    </svg>
-  );
-}
+// Logo BONHUB. Usa le immagini approvate (PNG trasparenti in /public/brand): il marchio non viene ridisegnato né deformato.
+//   variant="full"   logo completo (icona + scritta);  variant="icon"  solo icona (favicon, navigazione compatta)
+//   tone="light"     per superfici chiare (scritta nera);  tone="dark"  per superfici scure (scritta bianca)
+//   height           altezza in pixel; la larghezza segue le proporzioni originali
+// La scritta fa parte dell'immagine: non si aggiunge mai un altro "BONHUB" accanto. Se il link o il pulsante che lo contiene
+// ha già un nome accessibile (aria-label), si passa `decorative` per non far leggere il nome due volte.
+const SOURCES = {
+  full: { light: '/brand/bonhub-logo.png', dark: '/brand/bonhub-logo-white.png', ratio: 1678 / 349 },
+  icon: { light: '/brand/bonhub-icon.png', dark: '/brand/bonhub-icon.png', ratio: 347 / 349 },
+};
 
-export default function Logo({ size = 32, tone = 'color', showText = true, className = '' }) {
+export default function Logo({ variant = 'full', tone = 'light', height = 32, decorative = false, className = '' }) {
+  const source = SOURCES[variant] || SOURCES.full;
   return (
-    <span className={`logo ${className}`}>
-      <LogoMark size={size} tone={tone} />
-      {showText && (
-        <span className="logo-text" style={{ fontSize: size * 0.62 }}>
-          Task<span className="logo-flow">Flow</span>
-        </span>
-      )}
-    </span>
+    <img
+      className={`logo logo-${variant} ${className}`}
+      src={source[tone] || source.light}
+      width={Math.round(height * source.ratio)}
+      height={height}
+      alt={decorative ? '' : 'BONHUB'}
+      decoding="async"
+      draggable="false"
+    />
   );
 }

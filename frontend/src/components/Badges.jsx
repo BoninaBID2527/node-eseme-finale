@@ -2,8 +2,13 @@ import Icon from './Icon';
 import { dueInfo, priorityLabel, PROJECT_STATUS, statusLabel } from '../utils';
 
 // La priorità è comunicata da etichetta e forma, non solo dal colore.
-export function PriorityBadge({ value }) {
-  return <span className={`badge badge-priority-${value}`}>{priorityLabel(value)}</span>;
+export function PriorityBadge({ value, withIcon = false }) {
+  return (
+    <span className={`badge badge-priority-${value}`}>
+      {withIcon && <Icon name="flag" size={12} />}
+      {priorityLabel(value)}
+    </span>
+  );
 }
 
 export function StatusPill({ value }) {
@@ -15,15 +20,21 @@ export function ProjectStatusBadge({ status }) {
   return <span className={`badge badge-project-${status}`}>{PROJECT_STATUS[status]}</span>;
 }
 
-export function DueLabel({ task, withIcon = true }) {
+// chip: scadenza come etichetta colorata (rosso = scaduta, giallo = vicina), usata sulle schede della bacheca.
+export function DueLabel({ task, withIcon = true, chip = false }) {
   const { text, tone } = dueInfo(task);
   if (!task.dueDate) return null;
   return (
-    <span className={`due ${tone}`}>
+    <span className={`due ${tone}${chip ? ' due-chip' : ''}`}>
       {withIcon && <Icon name={tone === 'overdue' ? 'alert' : 'calendar'} size={14} />}
       {text}
     </span>
   );
+}
+
+// Pallino dello stato (colonna): grigio = da fare, giallo = in corso, verde = completato.
+export function StatusDot({ value }) {
+  return <span className={`status-dot status-dot-${value}`} aria-hidden="true" />;
 }
 
 export function VisibilityLabel({ visibility }) {

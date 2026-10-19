@@ -9,15 +9,39 @@ import Logo from './Logo';
 
 function NavItem({ to, icon, label, badge, end }) {
   return (
-    <NavLink to={to} end={end} className="nav-item">
-      <Icon name={icon} size={19} />
-      <span>{label}</span>
+    <NavLink to={to} end={end} className="nav-item" title={label}>
+      <Icon name={icon} size={20} />
+      <span className="nav-label">{label}</span>
       {badge > 0 && (
         <span className="nav-badge" aria-label={`${badge} non lette`}>
           {badge > 99 ? '99+' : badge}
         </span>
       )}
     </NavLink>
+  );
+}
+
+// Barra di navigazione rapida in basso (solo smartphone, solo con la sessione attiva): le cinque destinazioni più usate.
+function BottomNav({ unread }) {
+  const items = [
+    { to: '/dashboard', icon: 'dashboard', label: 'Home' },
+    { to: '/catalog', icon: 'compass', label: 'Catalogo' },
+    { to: '/projects', icon: 'folder', label: 'Progetti', end: true },
+    { to: '/tasks', icon: 'tasks', label: 'Task' },
+    { to: '/notifications', icon: 'bell', label: 'Avvisi', badge: unread },
+  ];
+  return (
+    <nav className="bottom-nav" aria-label="Navigazione rapida">
+      {items.map((item) => (
+        <NavLink key={item.to} to={item.to} end={item.end} className="bottom-nav-item">
+          <span className="bottom-nav-icon">
+            <Icon name={item.icon} size={22} />
+            {item.badge > 0 && <span className="tab-badge" aria-label={`${item.badge} non lette`}>{item.badge > 9 ? '9+' : item.badge}</span>}
+          </span>
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
+    </nav>
   );
 }
 
@@ -67,8 +91,8 @@ export default function Layout() {
       </a>
 
       <header className="topbar">
-        <Link to="/" aria-label="TaskFlow, pagina iniziale">
-          <Logo size={28} />
+        <Link to="/" aria-label="BONHUB, pagina iniziale">
+          <Logo tone="dark" height={26} decorative />
         </Link>
         <div className="topbar-actions">
           {user && (
@@ -93,55 +117,66 @@ export default function Layout() {
       <div className={`sidebar-backdrop${open ? ' is-open' : ''}`} onClick={() => setOpen(false)} aria-hidden="true" />
 
       <aside id="sidebar" className={`sidebar${open ? ' is-open' : ''}`} aria-label="Barra laterale" inert={isMobile && !open ? true : undefined}>
-        <Link to="/" className="sidebar-logo" aria-label="TaskFlow, pagina iniziale">
-          <Logo size={34} />
+        <Link to="/" className="sidebar-logo" aria-label="BONHUB, pagina iniziale">
+          <Logo className="logo-wide" tone="dark" height={30} decorative />
+          <Logo className="logo-compact" variant="icon" height={40} decorative />
         </Link>
 
         {user && (
-          <button className="btn btn-primary btn-block sidebar-cta" onClick={() => navigate('/projects/new')}>
-            <Icon name="plus" size={18} /> Nuovo progetto
+          <button className="btn btn-primary btn-block sidebar-cta" onClick={() => navigate('/projects/new')} title="Nuovo progetto">
+            <Icon name="plus" size={18} />
+            <span className="nav-label">Nuovo progetto</span>
           </button>
         )}
 
         <nav className="nav" aria-label="Navigazione principale">
-          {user && <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />}
-          <NavItem to="/catalog" icon="compass" label="Catalogo" />
           {user && (
             <>
+              <p className="nav-group">Lavoro</p>
+              <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />
               <NavItem to="/projects" icon="folder" label="I miei progetti" end />
               <NavItem to="/tasks" icon="tasks" label="I miei task" />
               <NavItem to="/notifications" icon="bell" label="Notifiche" badge={unread} />
             </>
           )}
-          {user?.role === 'admin' && <NavItem to="/admin" icon="shield" label="Amministrazione" />}
+          <p className="nav-group">Esplora</p>
+          <NavItem to="/catalog" icon="compass" label="Catalogo" />
+          {user?.role === 'admin' && (
+            <>
+              <p className="nav-group">Gestione</p>
+              <NavItem to="/admin" icon="shield" label="Amministrazione" />
+            </>
+          )}
         </nav>
 
         <div className="sidebar-foot">
           {user ? (
             <>
-              <span className={`live${connected ? ' is-on' : ''}`} role="status">
-                <Icon name={connected ? 'wifi' : 'wifi-off'} size={14} />
-                {connected ? 'Aggiornamenti live attivi' : 'Riconnessione in corso…'}
+              <span className={`live${connected ? ' is-on' : ''}`} role="status" title={connected ? 'Aggiornamenti live attivi' : 'Riconnessione in corso…'}>
+                <span className="live-dot" aria-hidden="true" />
+                <span className="nav-label">{connected ? 'Aggiornamenti live attivi' : 'Riconnessione in corso…'}</span>
               </span>
-              <NavLink to="/profile" className="me">
+              <NavLink to="/profile" className="me" title="Profilo">
                 <Avatar name={user.name} size={36} />
-                <span className="me-text">
+                <span className="me-text nav-label">
                   <strong>{user.name}</strong>
                   <small>{user.role === 'admin' ? 'Amministratore' : 'Profilo'}</small>
                 </span>
               </NavLink>
-              <button className="nav-item nav-logout" onClick={handleLogout}>
-                <Icon name="logout" size={19} />
-                <span>Esci</span>
+              <button className="nav-item nav-logout" onClick={handleLogout} title="Esci">
+                <Icon name="logout" size={20} />
+                <span className="nav-label">Esci</span>
               </button>
             </>
           ) : (
             <div className="auth-links">
-              <Link className="btn btn-primary btn-block" to="/login">
-                Accedi
+              <Link className="btn btn-primary btn-block" to="/login" title="Accedi">
+                <Icon name="user" size={18} />
+                <span className="nav-label">Accedi</span>
               </Link>
               <Link className="btn btn-dark-ghost btn-block" to="/register">
-                Registrati
+                <span className="nav-label">Registrati</span>
+                <Icon name="plus" size={18} className="rail-only" />
               </Link>
             </div>
           )}
@@ -151,6 +186,8 @@ export default function Layout() {
       <main id="main" className="main" ref={mainRef} tabIndex={-1}>
         <Outlet />
       </main>
+
+      {user && isMobile && <BottomNav unread={unread} />}
     </div>
   );
 }

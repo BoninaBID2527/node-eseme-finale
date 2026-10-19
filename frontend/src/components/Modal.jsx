@@ -5,7 +5,7 @@ import Icon from './Icon';
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // Dialogo accessibile: focus intrappolato dentro, Esc per chiudere, scroll della pagina bloccato
-// e focus restituito all'elemento che lo ha aperto.
+// e focus restituito all'elemento che lo ha aperto. size="drawer" lo mostra come pannello laterale a tutta altezza.
 export default function Modal({ title, onClose, children, size = 'md' }) {
   const titleId = useId();
   const dialogRef = useRef(null);
@@ -51,7 +51,7 @@ export default function Modal({ title, onClose, children, size = 'md' }) {
   }, []);
 
   return createPortal(
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`modal-backdrop${size === 'drawer' ? ' is-drawer' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialogRef}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
@@ -59,7 +59,7 @@ export default function Modal({ title, onClose, children, size = 'md' }) {
             <Icon name="x" size={20} />
           </button>
         </div>
-        {children}
+        {size === 'drawer' ? <div className="modal-body">{children}</div> : children}
       </div>
     </div>,
     document.body

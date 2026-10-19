@@ -4,7 +4,7 @@ import { api } from '../api';
 import { DueLabel, PriorityBadge } from '../components/Badges';
 import Icon from '../components/Icon';
 import InvitationList from '../components/InvitationList';
-import ProjectCard from '../components/ProjectCard';
+import PageHeader from '../components/PageHeader';
 import { Skeleton, RowsSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/StateMessage';
 import { useAuth } from '../context/AuthContext';
@@ -14,15 +14,43 @@ import useDocumentTitle from '../hooks/useDocumentTitle';
 
 const todayLabel = new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
+// Riga di un task assegnato: titolo e progetto a sinistra; priorità e scadenza a destra (due informazioni distinte).
 function TaskRow({ task, overdue }) {
   return (
-    <Link to={`/projects/${task.project._id}?tab=board&task=${task._id}`} className={`list-row${overdue ? ' is-overdue' : ''}`}>
+    <Link to={`/projects/${task.project._id}?tab=board&task=${task._id}`} className={`list-row dash-task${overdue ? ' is-overdue' : ''}`} data-priority={task.priority}>
       <div className="grow">
         <strong className="truncate">{task.title}</strong>
-        <small className="muted truncate">{task.project.title}</small>
+        <small className="muted truncate dash-task-project">
+          <Icon name="folder" size={13} /> {task.project.title}
+        </small>
       </div>
-      <PriorityBadge value={task.priority} />
-      <DueLabel task={task} />
+      <div className="dash-task-meta">
+        <DueLabel task={task} />
+        <PriorityBadge value={task.priority} />
+      </div>
+    </Link>
+  );
+}
+
+// Riga compatta di un progetto recente: ruolo, titolo e avanzamento.
+function ProjectRow({ project, userId }) {
+  const owner = String(project.owner?._id || project.owner) === String(userId);
+  const { done = 0, total = 0 } = project.progress || {};
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  return (
+    <Link to={`/projects/${project._id}`} className="list-row dash-project">
+      <div className="grow">
+        <strong className="truncate">{project.title}</strong>
+        <span className="dash-project-sub">
+          <span className={`role-tag${owner ? ' is-owner' : ''}`}>{owner ? 'Proprietario' : 'Membro'}</span>
+          {project.status !== 'active' && <span className="muted">{project.status === 'archived' ? 'Archiviato' : 'Oscurato'}</span>}
+          <span className="muted tabular">{total ? `${done}/${total} task` : 'Nessun task'}</span>
+        </span>
+        <span className="progress-bar" role="img" aria-label={`${percent}% completato`}>
+          <span style={{ width: `${percent}%` }} />
+        </span>
+      </div>
+      <Icon name="arrow-right" size={16} className="row-arrow" />
     </Link>
   );
 }
@@ -47,52 +75,38 @@ export default function Dashboard() {
   if (error) return <div className="page"><ErrorState message={error} onRetry={reload} /></div>;
 
   const stats = data?.stats;
-  const statCards = stats && [
+  const items = stats && [
     { label: 'Task da completare', value: stats.openTasks, to: '/tasks' },
-    { label: 'Task scaduti', value: stats.overdue, to: '/tasks?due=overdue', tone: stats.overdue > 0 ? 'danger' : '' },
-    { label: 'In scadenza (7 giorni)', value: stats.dueThisWeek, to: '/tasks?due=week' },
+    { label: 'Scaduti', value: stats.overdue, to: '/tasks?due=overdue', tone: stats.overdue > 0 ? 'danger' : '' },
+    { label: 'In scadenza (7 giorni)', value: stats.dueThisWeek, to: '/tasks?due=week', tone: stats.dueThisWeek > 0 ? 'warn' : '' },
     { label: 'Progetti', value: stats.created + stats.memberOf, to: '/projects', sub: `${stats.created} creati · ${stats.memberOf} da membro` },
   ];
+  const hasTasks = data && data.overdue.length + data.upcoming.length > 0;
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <p className="eyebrow">{todayLabel}</p>
-          <h1 className="page-title">Ciao, {user.name.split(' ')[0]}</h1>
-          <p className="page-lead">{stats ? leadText(stats) : ' '}</p>
-        </div>
-        <div className="page-actions">
-          <Link to="/catalog" className="btn">
-            <Icon name="compass" size={18} /> Esplora il catalogo
-          </Link>
-          <button className="btn btn-primary" onClick={() => navigate('/projects/new')}>
-            <Icon name="plus" size={18} /> Nuovo progetto
-          </button>
-        </div>
-      </header>
-
-      <div className="stats">
-        {loading && !data
-          ? Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="card stat">
-                <Skeleton width={60} height={36} />
-                <Skeleton width="70%" height={14} />
-              </div>
-            ))
-          : statCards.map((s) => (
-              <Link key={s.label} to={s.to} className={`card stat${s.tone ? ` stat-${s.tone}` : ''}`}>
-                <strong className="stat-value">{s.value}</strong>
-                <span>{s.label}</span>
-                {s.sub && <small>{s.sub}</small>}
-              </Link>
-            ))}
-      </div>
+      <PageHeader
+        eyebrow={todayLabel}
+        title={`Ciao, ${user.name.split(' ')[0]}`}
+        lead={stats ? leadText(stats) : ' '}
+        actions={
+          <>
+            <Link to="/catalog" className="btn">
+              <Icon name="compass" size={18} /> Esplora il catalogo
+            </Link>
+            <button className="btn btn-primary" onClick={() => navigate('/projects/new')}>
+              <Icon name="plus" size={18} /> Nuovo progetto
+            </button>
+          </>
+        }
+      />
 
       {data?.invitations.length > 0 && (
-        <section className="section" aria-labelledby="dash-invites">
+        <section className="dash-invites" aria-labelledby="dash-invites">
           <div className="section-head">
-            <h2 id="dash-invites">Inviti in sospeso</h2>
+            <h2 id="dash-invites">
+              Inviti in sospeso <span className="tab-count">{data.invitations.length}</span>
+            </h2>
           </div>
           <div className="card">
             <InvitationList invitations={data.invitations} onChanged={() => reload({ silent: true })} />
@@ -100,15 +114,32 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="split">
-        <section className="section" aria-labelledby="dash-due">
+      <div className="summary card" aria-label="Riepilogo">
+        {loading && !data
+          ? Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="stat">
+                <Skeleton width={56} height={34} />
+                <Skeleton width="70%" height={14} />
+              </div>
+            ))
+          : items.map((s) => (
+              <Link key={s.label} to={s.to} className={`stat${s.tone ? ` stat-${s.tone}` : ''}`}>
+                <strong className="stat-value">{s.value}</strong>
+                <span className="stat-label">{s.label}</span>
+                {s.sub && <small>{s.sub}</small>}
+              </Link>
+            ))}
+      </div>
+
+      <div className="dash-grid">
+        <section className="dash-main" aria-labelledby="dash-due">
           <div className="section-head">
             <h2 id="dash-due">Da fare ora</h2>
             <Link to="/tasks">Tutti i miei task</Link>
           </div>
           {loading && !data ? (
             <RowsSkeleton rows={4} />
-          ) : data.overdue.length + data.upcoming.length === 0 ? (
+          ) : !hasTasks ? (
             <EmptyState
               icon="check-circle"
               title="Niente in scadenza"
@@ -116,10 +147,12 @@ export default function Dashboard() {
               action={<Link className="btn" to="/tasks?status=all">Vedi tutti i task</Link>}
             />
           ) : (
-            <div className="card list" data-testid="due-tasks">
+            <div className="card list stagger" data-testid="due-tasks">
+              {data.overdue.length > 0 && <p className="list-group is-overdue">In ritardo · {data.overdue.length}</p>}
               {data.overdue.map((t) => (
                 <TaskRow key={t._id} task={t} overdue />
               ))}
+              {data.upcoming.length > 0 && <p className="list-group">In arrivo · {data.upcoming.length}</p>}
               {data.upcoming.map((t) => (
                 <TaskRow key={t._id} task={t} />
               ))}
@@ -127,51 +160,34 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="section" aria-labelledby="dash-quick">
+        <section className="dash-side" aria-labelledby="dash-projects">
           <div className="section-head">
-            <h2 id="dash-quick">Azioni rapide</h2>
+            <h2 id="dash-projects">Progetti recenti</h2>
+            <Link to="/projects">Tutti</Link>
           </div>
-          <div className="card quick">
-            <Link to="/projects/new" className="quick-item">
-              <Icon name="plus" size={18} /> Crea un nuovo progetto
-              <Icon name="arrow-right" size={16} className="quick-arrow" />
-            </Link>
-            <Link to="/catalog" className="quick-item">
-              <Icon name="compass" size={18} /> Cerca un progetto a cui unirti
-              <Icon name="arrow-right" size={16} className="quick-arrow" />
-            </Link>
-            <Link to="/notifications" className="quick-item">
-              <Icon name="bell" size={18} /> Leggi le notifiche
-              <Icon name="arrow-right" size={16} className="quick-arrow" />
-            </Link>
-            <Link to="/profile" className="quick-item">
-              <Icon name="user" size={18} /> Modifica il profilo
-              <Icon name="arrow-right" size={16} className="quick-arrow" />
-            </Link>
-          </div>
+          {loading && !data ? (
+            <RowsSkeleton rows={4} />
+          ) : data.recentProjects.length === 0 ? (
+            <EmptyState
+              icon="folder"
+              title="Nessun progetto"
+              text="Crea il tuo primo progetto oppure cerca nel catalogo un team a cui unirti."
+              action={
+                <div className="state-actions">
+                  <Link className="btn btn-primary" to="/projects/new">Crea un progetto</Link>
+                  <Link className="btn" to="/catalog">Sfoglia il catalogo</Link>
+                </div>
+              }
+            />
+          ) : (
+            <div className="card list stagger">
+              {data.recentProjects.map((p) => (
+                <ProjectRow key={p._id} project={p} userId={user._id || user.id} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
-
-      <section className="section" aria-labelledby="dash-projects">
-        <div className="section-head">
-          <h2 id="dash-projects">Progetti recenti</h2>
-          <Link to="/projects">Tutti i miei progetti</Link>
-        </div>
-        {data && data.recentProjects.length === 0 ? (
-          <EmptyState
-            icon="folder"
-            title="Non fai ancora parte di nessun progetto"
-            text="Crea il tuo primo progetto oppure cerca nel catalogo un team a cui unirti."
-            action={<Link className="btn btn-primary" to="/projects/new">Crea un progetto</Link>}
-          />
-        ) : (
-          <div className="grid">
-            {data?.recentProjects.map((p) => (
-              <ProjectCard key={p._id} project={p} showProgress />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

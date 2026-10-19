@@ -10,7 +10,7 @@ async function start() {
   await migrate();
   const server = http.createServer(app);
   initSockets(server);
-  server.listen(port, () => console.log(`TaskFlow API in ascolto su http://localhost:${port}`));
+  server.listen(port, () => console.log(`BONHUB API in ascolto su http://localhost:${port}`));
 }
 
 start().catch((err) => {

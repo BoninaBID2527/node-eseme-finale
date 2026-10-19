@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useToast } from '../context/ToastContext';
 import { errorMessage, formatDate, PRIORITIES, STATUSES, toDateInput } from '../utils';
+import { DueLabel, PriorityBadge, StatusPill } from './Badges';
 import Field from './Field';
+import Icon from './Icon';
 import Modal from './Modal';
 import TaskComments from './TaskComments';
 
@@ -25,6 +27,13 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const formId = useId();
+  const alertRef = useRef(null);
+
+  // Un errore importante resta visibile nel pannello: lo si porta in vista invece di affidarlo a un toast.
+  useEffect(() => {
+    if (formError || Object.keys(errors).length) alertRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [formError, errors]);
 
   const update = (field) => (e) => {
     setForm({ ...form, [field]: e.target.value });
@@ -67,33 +76,42 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
     }
   };
 
+  const isEdit = Boolean(task);
+
   return (
-    <Modal title={readOnly ? 'Dettaglio task' : task ? 'Modifica task' : 'Nuovo task'} onClose={onClose} size={task ? 'lg' : 'md'}>
-      <form onSubmit={submit} className="form" noValidate>
+    <Modal title={readOnly ? 'Dettaglio task' : task ? 'Modifica task' : 'Nuovo task'} onClose={onClose} size={isEdit ? 'drawer' : 'md'}>
+      {isEdit && (
+        <div className="task-summary" aria-label="Riepilogo del task">
+          <StatusPill value={task.status} />
+          <PriorityBadge value={task.priority} withIcon />
+          <DueLabel task={task} chip />
+          <span className="spacer" />
+          <span className="meta task-created">
+            Creato il {formatDate(task.createdAt)}
+            {task.updatedAt !== task.createdAt && ` · modificato il ${formatDate(task.updatedAt)}`}
+          </span>
+        </div>
+      )}
+
+      <form id={formId} onSubmit={submit} className="form task-form" noValidate>
+        {formError && <p className="form-alert" role="alert" ref={alertRef}>{formError}</p>}
         <fieldset className="form" disabled={readOnly}>
           <Field label="Titolo" error={errors.title}>
-            <input value={form.title} onChange={update('title')} required maxLength={120} data-autofocus />
+            <input className="task-title-input" value={form.title} onChange={update('title')} required maxLength={120} data-autofocus />
           </Field>
-          <Field label="Descrizione" error={errors.description} optional>
-            <textarea rows={3} value={form.description} onChange={update('description')} maxLength={2000} />
-          </Field>
-          <div className="form-row">
-            <Field label="Scadenza" error={errors.dueDate} optional>
-              <input type="date" value={form.dueDate} onChange={update('dueDate')} />
+
+          <div className="task-props">
+            <Field label="Stato" error={errors.status}>
+              <select value={form.status} onChange={update('status')}>
+                {STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Priorità" error={errors.priority}>
               <select value={form.priority} onChange={update('priority')}>
                 {PRIORITIES.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <div className="form-row">
-            <Field label="Stato" error={errors.status}>
-              <select value={form.status} onChange={update('status')}>
-                {STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
             </Field>
@@ -108,7 +126,14 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
                 ))}
               </select>
             </Field>
+            <Field label="Scadenza" error={errors.dueDate} optional>
+              <input type="date" value={form.dueDate} onChange={update('dueDate')} />
+            </Field>
           </div>
+
+          <Field label="Descrizione" error={errors.description} optional>
+            <textarea rows={isEdit ? 4 : 3} value={form.description} onChange={update('description')} maxLength={2000} />
+          </Field>
           <Field label="Etichette" error={errors.labels} optional hint="Separate da virgola (max 5), per esempio: bug, frontend">
             <input value={form.labels} onChange={update('labels')} list="known-labels" maxLength={120} />
           </Field>
@@ -119,33 +144,42 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
           </datalist>
         </fieldset>
 
-        {task && (
-          <p className="muted task-created">
-            Creato il {formatDate(task.createdAt)}
-            {task.updatedAt !== task.createdAt && ` · modificato il ${formatDate(task.updatedAt)}`}
-          </p>
+        {!isEdit && (
+          <div className="modal-actions">
+            <span className="spacer" />
+            <button type="button" className="btn" onClick={onClose}>Annulla</button>
+            <button className={`btn btn-primary${saving ? ' is-loading' : ''}`} disabled={saving}>Crea task</button>
+          </div>
         )}
-        {formError && <p className="form-alert" role="alert">{formError}</p>}
+      </form>
 
-        <div className="modal-actions">
-          {task && !readOnly && (
-            <button type="button" className="btn btn-danger-ghost" onClick={remove}>
-              Elimina
-            </button>
-          )}
+      {isEdit && <TaskComments projectId={projectId} taskId={task._id} readOnly={readOnly} canModerate={canModerate} />}
+
+      {isEdit && !readOnly && (
+        <section className="task-danger" aria-labelledby={`${formId}-danger`}>
+          <div>
+            <h3 id={`${formId}-danger`}>Zona pericolosa</h3>
+            <p className="meta">Elimina il task e i suoi commenti per tutti i membri. L'azione non si può annullare.</p>
+          </div>
+          <button type="button" className="btn btn-danger-ghost" onClick={remove}>
+            <Icon name="trash" size={16} /> Elimina task
+          </button>
+        </section>
+      )}
+
+      {isEdit && (
+        <div className="modal-actions drawer-actions">
           <span className="spacer" />
           <button type="button" className="btn" onClick={onClose}>
             {readOnly ? 'Chiudi' : 'Annulla'}
           </button>
           {!readOnly && (
-            <button className="btn btn-primary" disabled={saving}>
-              {task ? 'Salva' : 'Crea task'}
+            <button form={formId} className={`btn btn-primary${saving ? ' is-loading' : ''}`} disabled={saving}>
+              Salva
             </button>
           )}
         </div>
-      </form>
-
-      {task && <TaskComments projectId={projectId} taskId={task._id} readOnly={readOnly} canModerate={canModerate} />}
+      )}
     </Modal>
   );
 }

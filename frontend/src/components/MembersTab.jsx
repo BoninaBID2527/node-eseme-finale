@@ -92,18 +92,21 @@ export default function MembersTab({ project, isOwner, isMember, writable, onCha
   return (
     <div className="members-layout">
       <section className="card panel" aria-labelledby="members-title">
-        <h2 id="members-title">Membri <span className="tab-count">{people.length}</span></h2>
+        <div className="panel-title-row">
+          <h2 id="members-title">Membri <span className="tab-count">{people.length}</span></h2>
+        </div>
         <ul className="member-list" data-testid="members">
           {people.map((m) => (
-            <li key={m._id} className="member">
+            <li key={m._id} className={`member${m.isOwner ? ' is-owner' : ''}`}>
               <Avatar name={m.name} size={40} />
               <div className="grow">
                 <strong>
                   {m.name}
-                  {m._id === user._id && <span className="muted"> (tu)</span>}
+                  {m._id === user._id && <span className="member-you"> (tu)</span>}
                 </strong>
-                <small className="muted truncate">{m.isOwner ? 'Proprietario' : 'Membro'}{m.email ? ` · ${m.email}` : ''}</small>
+                {m.email && <small className="muted truncate">{m.email}</small>}
               </div>
+              <span className={`role-chip${m.isOwner ? ' is-owner' : ''}`}>{m.isOwner ? 'Proprietario' : 'Membro'}</span>
               {isOwner && !m.isOwner && writable && (
                 <button className="btn btn-sm btn-danger-ghost" onClick={() => removeMember(m)} aria-label={`Rimuovi ${m.name} dal progetto`}>
                   Rimuovi
@@ -113,7 +116,11 @@ export default function MembersTab({ project, isOwner, isMember, writable, onCha
           ))}
         </ul>
         {isMember && !isOwner && writable && (
-          <div className="panel-foot">
+          <div className="panel-foot leave-zone">
+            <div>
+              <strong>Lascia il progetto</strong>
+              <p className="muted">Perderai l'accesso a bacheca e chat. Per rientrare servirà un nuovo invito.</p>
+            </div>
             <button className="btn btn-danger-ghost" onClick={leave}>
               <Icon name="logout" size={16} /> Lascia il progetto
             </button>
@@ -125,20 +132,19 @@ export default function MembersTab({ project, isOwner, isMember, writable, onCha
         <section className="card panel" aria-labelledby="invite-title">
           <h2 id="invite-title">Invita una persona</h2>
           {writable ? (
-            <form className="form" onSubmit={invite} noValidate>
-              <Field label="Email dell'utente" error={emailError} hint="Deve essere già registrato a TaskFlow. Riceverà un invito da accettare.">
+            <form className="invite-form" onSubmit={invite} noValidate>
+              <Field label="Email dell'utente" error={emailError} hint="Deve essere già registrato a BONHUB. Riceverà un invito da accettare.">
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@esempio.it" autoComplete="off" required />
               </Field>
-              <div>
-                <button className="btn btn-primary" disabled={busy || !email}>
-                  <Icon name="mail" size={16} /> Invia invito
-                </button>
-              </div>
+              <button className={`btn btn-primary${busy ? ' is-loading' : ''}`} disabled={busy || !email}>
+                <Icon name="mail" size={16} /> Invia invito
+              </button>
             </form>
           ) : (
             <p className="muted">Il progetto non è modificabile: gli inviti sono disattivati.</p>
           )}
 
+          <div className="panel-divider" />
           <h3 className="panel-subtitle">Inviti in attesa</h3>
           {invitations.data?.invitations.length ? (
             <ul className="member-list" data-testid="pending-invitations">
@@ -149,6 +155,7 @@ export default function MembersTab({ project, isOwner, isMember, writable, onCha
                     <strong>{inv.invitee.name}</strong>
                     <small className="muted truncate">{inv.invitee.email} · invitato {timeAgo(inv.createdAt)}</small>
                   </div>
+                  <span className="role-chip is-pending">In attesa</span>
                   <button className="btn btn-sm" onClick={() => cancelInvitation(inv)} aria-label={`Annulla l'invito a ${inv.invitee.name}`}>
                     Annulla
                   </button>

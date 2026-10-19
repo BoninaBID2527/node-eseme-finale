@@ -1,6 +1,7 @@
 // Piccolo client per le API REST: aggiunge il token e trasforma gli errori in Error con messaggio.
 // error.status = codice HTTP · error.fields = { campo: messaggio } per i form · error.code = identificativo stabile.
 const TOKEN_KEY = 'taskflow_token';
+// Chiave di sessione invariata dopo il cambio di nome in BONHUB: così chi ha già fatto l'accesso resta connesso.
 
 export const getToken = () => {
   try {

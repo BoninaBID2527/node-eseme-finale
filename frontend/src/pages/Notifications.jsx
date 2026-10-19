@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import Icon from '../components/Icon';
 import InvitationList from '../components/InvitationList';
+import PageHeader from '../components/PageHeader';
 import { RowsSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/StateMessage';
 import { useRealtime, useSocketEvent } from '../context/RealtimeContext';
@@ -10,6 +11,13 @@ import { useToast } from '../context/ToastContext';
 import useAsync from '../hooks/useAsync';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { errorMessage, notificationLink, timeAgo } from '../utils';
+
+// Tono dell'icona: attività sul lavoro (giallo), persone (scuro), avvisi che richiedono attenzione (rosso).
+const TONES = {
+  task_assigned: 'work', task_moved: 'work', task_comment: 'work',
+  member_joined: 'people', member_left: 'people', project_invitation: 'people', invitation_declined: 'people',
+  member_removed: 'alert', project_reported: 'alert', project_hidden: 'alert',
+};
 
 const ICONS = {
   task_assigned: 'tasks',
@@ -90,26 +98,27 @@ export default function Notifications() {
 
   return (
     <div className="page page-narrow">
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">Notifiche</h1>
-          <p className="page-lead">Task assegnati, cambi di stato, nuovi membri e inviti ai progetti.</p>
-        </div>
-        <button className="btn" onClick={markAll} disabled={unread === 0}>
-          <Icon name="check" size={16} /> Segna tutte come lette
-        </button>
-      </header>
+      <PageHeader
+        eyebrow="Lavoro"
+        title="Notifiche"
+        lead="Task assegnati, cambi di stato, nuovi membri e inviti ai progetti."
+        actions={
+          <button className="btn" onClick={markAll} disabled={unread === 0}>
+            <Icon name="check" size={16} /> Segna tutte come lette
+          </button>
+        }
+      />
 
       {invitations.data?.invitations.length > 0 && (
         <section className="section-first" aria-labelledby="inv-title">
-          <h2 id="inv-title" className="sr-title">Inviti in sospeso</h2>
+          <h2 id="inv-title" className="visually-hidden">Inviti in sospeso</h2>
           <div className="card">
             <InvitationList invitations={invitations.data.invitations} onChanged={() => invitations.reload({ silent: true })} />
           </div>
         </section>
       )}
 
-      <div className="toolbar">
+      <div className="toolbar is-plain">
         <div className="segmented" role="group" aria-label="Filtra le notifiche">
           <button aria-pressed={!onlyUnread} onClick={() => setOnlyUnread(false)}>Tutte</button>
           <button aria-pressed={onlyUnread} onClick={() => setOnlyUnread(true)}>Non lette{unread > 0 ? ` (${unread})` : ''}</button>
@@ -128,17 +137,17 @@ export default function Notifications() {
       )}
       {!first.error && list.length > 0 && (
         <>
-          <ul className="card list notif-list" data-testid="notifications">
+          <ul className="card list notif-list stagger" data-testid="notifications">
             {list.map((n) => (
               <li key={n._id}>
                 <button className={`notif${n.read ? '' : ' is-unread'}`} onClick={() => open(n)}>
-                  <span className="notif-icon">
+                  <span className={`notif-icon tone-${TONES[n.type] || 'work'}`}>
                     <Icon name={ICONS[n.type] || 'bell'} size={18} />
                   </span>
                   <span className="grow notif-text">
                     <span>{n.text}</span>
                     <small className="muted">
-                      {timeAgo(n.createdAt)}
+                      <Icon name="clock" size={12} /> {timeAgo(n.createdAt)}
                       {!n.read && <span className="visually-hidden"> · non letta</span>}
                     </small>
                   </span>
@@ -149,8 +158,8 @@ export default function Notifications() {
           </ul>
           {hasMore && (
             <div className="load-more">
-              <button className="btn" onClick={loadMore} disabled={extra.loadingMore}>
-                {extra.loadingMore ? 'Caricamento…' : 'Carica altre notifiche'}
+              <button className={`btn${extra.loadingMore ? ' is-loading' : ''}`} onClick={loadMore} disabled={extra.loadingMore}>
+                Carica altre notifiche
               </button>
             </div>
           )}

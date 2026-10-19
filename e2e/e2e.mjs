@@ -1,4 +1,4 @@
-// Test end-to-end di TaskFlow: due browser contemporanei (Chromium) provano i flussi principali dell'app
+// Test end-to-end di BONHUB: due browser contemporanei (Chromium) provano i flussi principali dell'app
 // (registrazione, sessione scaduta, progetti, inviti, task e bacheca live, chat, notifiche, catalogo,
 // segnalazioni e moderazione, blocco utenti, mobile) e controllano l'accessibilità con axe-core.
 //
@@ -406,20 +406,20 @@ await step('Catalogo: ricerca, categoria, tecnologia, ordinamento, paginazione, 
   await page.waitForSelector('.project-card');
   const total = Number((await page.locator('.results-bar strong').innerText()).trim());
   assert(total >= 10, `attesi almeno 10 progetti, trovati ${total}`);
-  assert((await page.locator('.project-card').count()) === 9, 'la pagina deve mostrare 9 card');
+  assert((await page.locator('.project-card').count()) === 8, 'la pagina deve mostrare 8 card');
   await page.click('nav[aria-label=Paginazione] button[aria-label="Pagina 2"]');
   await page.waitForFunction(() => location.search.includes('page=2'));
   await page.click('nav[aria-label=Paginazione] button[aria-label="Pagina 1"]');
-  await page.selectOption('#catalog-category', 'Mobile');
+  await page.getByRole('button', { name: /^Mobile/ }).click();
   await page.waitForFunction(() => location.search.includes('category=Mobile'));
-  await page.waitForFunction(() => document.querySelectorAll('.project-card').length < 9);
-  await page.selectOption('#catalog-category', '');
+  await page.waitForFunction(() => document.querySelectorAll('.project-card').length < 8);
+  await page.getByRole('button', { name: 'Tutte', exact: true }).click();
   await page.selectOption('#catalog-tech', { label: /Playwright|React/.test('React') ? 'React' : '' }).catch(() => {});
   await page.fill('#catalog-q', 'palestra');
   await page.waitForFunction(() => document.querySelectorAll('.project-card').length === 1);
   assert(page.url().includes('q=palestra'), 'ricerca non riportata nell\'URL');
   await page.click('button:has-text("Azzera i filtri")');
-  await page.waitForFunction(() => document.querySelectorAll('.project-card').length === 9);
+  await page.waitForFunction(() => document.querySelectorAll('.project-card').length === 8);
   await page.selectOption('#catalog-sort', 'title');
   await page.waitForTimeout(500);
   const titles = await page.locator('.project-card h3').allInnerTexts();
@@ -565,7 +565,7 @@ await step('Profilo: cambio nome e password', async () => {
   await owner.page.click('button:has-text("Cambia password")');
   await toastWith(owner.page, 'Password aggiornata');
   await owner.page.reload();
-  await owner.page.locator('h1:has-text("Elena E2E Rossi")').waitFor();
+  await owner.page.locator('h2:has-text("Elena E2E Rossi")').waitFor();
 });
 
 // ====================================================================== N. Eliminazione progetto

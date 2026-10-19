@@ -5,16 +5,17 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useToast } from '../context/ToastContext';
 import { dueInfo, errorMessage, statusLabel, STATUSES } from '../utils';
 import Avatar from './Avatar';
-import { DueLabel, PriorityBadge } from './Badges';
+import { DueLabel, PriorityBadge, StatusDot } from './Badges';
 import DropdownMenu from './DropdownMenu';
 import Icon from './Icon';
+import { Skeleton } from './Skeleton';
 import { ErrorState } from './StateMessage';
 import TaskModal from './TaskModal';
 
 const NEXT = { ArrowRight: 1, ArrowLeft: -1 };
 const EMPTY_FILTERS = { q: '', assignee: '', priority: '', due: '', label: '' };
 
-function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, onDelete, onDragStart, onDragEnd }) {
+function TaskCard({ task, me, readOnly, dragging, saving, onOpen, onMove, onAssignMe, onDelete, onDragStart, onDragEnd }) {
   const isMine = task.assignee?._id === me;
 
   const onKeyDown = (e) => {
@@ -44,7 +45,8 @@ function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, on
 
   return (
     <li
-      className={`task${dragging ? ' is-dragging' : ''}${task.status === 'done' ? ' is-done' : ''}`}
+      className={`task task-p-${task.priority}${dragging ? ' is-dragging' : ''}${saving ? ' is-saving' : ''}${task.status === 'done' ? ' is-done' : ''}`}
+      aria-busy={saving || undefined}
       draggable={!readOnly}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', task._id);
@@ -56,6 +58,10 @@ function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, on
       data-task-id={task._id}
     >
       <button className="task-main" onClick={() => onOpen(task)} onKeyDown={onKeyDown} aria-label={`${task.title}. ${statusLabel(task.status)}${task.assignee ? `, assegnato a ${task.assignee.name}` : ''}. ${readOnly ? '' : 'Maiusc e frecce per spostare.'}`}>
+        <span className="task-top">
+          <PriorityBadge value={task.priority} withIcon />
+          {task.status === 'done' && <Icon name="check-circle" size={14} className="task-done-icon" />}
+        </span>
         <span className="task-title">{task.title}</span>
         {task.labels?.length > 0 && (
           <span className="label-list">
@@ -66,15 +72,14 @@ function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, on
           </span>
         )}
         <span className="task-meta">
-          <PriorityBadge value={task.priority} />
-          <DueLabel task={task} />
+          <DueLabel task={task} chip />
           {task.commentCount > 0 && (
             <span className="task-comments" title={`${task.commentCount} commenti`}>
               <Icon name="message" size={14} /> {task.commentCount}
             </span>
           )}
           <span className="spacer" />
-          {task.assignee ? <Avatar name={task.assignee.name} size={24} /> : <span className="task-unassigned" title="Nessun assegnatario"><Icon name="user" size={14} /></span>}
+          {task.assignee ? <Avatar name={task.assignee.name} size={26} /> : <span className="task-unassigned" title="Nessun assegnatario"><Icon name="user" size={14} /></span>}
         </span>
       </button>
       <DropdownMenu label={`Azioni per il task "${task.title}"`} items={items} triggerClassName="icon-btn task-menu" />
@@ -93,6 +98,7 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
   const [draggingId, setDraggingId] = useState(null);
   const [overColumn, setOverColumn] = useState(null);
   const [announce, setAnnounce] = useState('');
+  const [savingIds, setSavingIds] = useState([]); // task con un salvataggio in corso (spostamento, assegnazione)
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // Link diretto a un task (da notifiche e dashboard): apre il dettaglio appena i task sono caricati.
@@ -129,12 +135,16 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
   }, [tasks]);
 
   const hasFilters = Object.values(filters).some(Boolean);
+  const draggingTask = tasks?.find((t) => t._id === draggingId);
   const setFilter = (key) => (e) => setFilters({ ...filters, [key]: e.target.value });
+
+  const markSaving = (id, on) => setSavingIds((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)));
 
   const moveTask = async (task, status) => {
     if (task.status === status) return;
     const previous = task.status;
     patch(task._id, { status }); // l'interfaccia risponde subito
+    markSaving(task._id, true);
     try {
       const data = await api.patch(`/projects/${project._id}/tasks/${task._id}/status`, { status });
       upsert(data.task);
@@ -143,16 +153,21 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
       patch(task._id, { status: previous }); // ripristina lo stato corretto
       toast(`Spostamento non riuscito: ${errorMessage(err)}`, 'error');
       setAnnounce('Spostamento non riuscito');
+    } finally {
+      markSaving(task._id, false);
     }
   };
 
   const assignMe = async (task) => {
+    markSaving(task._id, true);
     try {
       const data = await api.patch(`/projects/${project._id}/tasks/${task._id}/assignee`, { assignee: user._id });
       upsert(data.task);
       toast('Task assegnato a te', 'success');
     } catch (err) {
       toast(errorMessage(err), 'error');
+    } finally {
+      markSaving(task._id, false);
     }
   };
 
@@ -178,7 +193,14 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
     return (
       <div className="board" aria-busy="true">
         {STATUSES.map((c) => (
-          <section key={c.value} className="column"><div className="skeleton" style={{ height: 120, borderRadius: 10 }} /></section>
+          <section key={c.value} className="column" aria-hidden="true">
+            <div className="column-head"><Skeleton width={96} height={14} /></div>
+            <div className="column-body">
+              {[0, 1].map((i) => (
+                <div key={i} className="task task-skeleton"><Skeleton width="30%" height={16} radius={8} /><Skeleton width="85%" height={16} /><Skeleton width="55%" height={12} /></div>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     );
@@ -187,6 +209,7 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
   return (
     <>
       <div className="board-toolbar" role="search" aria-label="Filtra i task della bacheca">
+        <Icon name="filter" size={16} className="board-toolbar-icon" />
         <div className="search board-search">
           <Icon name="search" size={18} />
           <input type="search" placeholder="Cerca un task" aria-label="Cerca un task" value={filters.q} onChange={setFilter('q')} />
@@ -244,7 +267,7 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
           <button className="btn btn-primary btn-sm" onClick={() => setModal({ status: 'todo' })}>Crea il primo task</button>
         </div>
       )}
-        <div className="board">
+        <div className={`board${draggingId ? ' is-dragging' : ''}`}>
           {STATUSES.map((column) => {
             const items = filtered.filter((t) => t.status === column.value);
             const total = tasks.filter((t) => t.status === column.value).length;
@@ -269,8 +292,15 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
                 data-testid={`column-${column.value}`}
               >
                 <header className="column-head">
+                  <StatusDot value={column.value} />
                   <h3 id={`col-${column.value}`}>{column.label}</h3>
                   <span className="count">{hasFilters ? `${items.length}/${total}` : total}</span>
+                  <span className="spacer" />
+                  {!readOnly && (
+                    <button className="icon-btn column-add" onClick={() => setModal({ status: column.value })} aria-label={`Aggiungi un task in ${column.label}`} title="Aggiungi task">
+                      <Icon name="plus" size={18} />
+                    </button>
+                  )}
                 </header>
                 <ul className="column-body">
                   {items.map((task) => (
@@ -280,6 +310,7 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
                       me={user._id}
                       readOnly={readOnly}
                       dragging={draggingId === task._id}
+                      saving={savingIds.includes(task._id)}
                       onOpen={(t) => setModal({ task: t })}
                       onMove={moveTask}
                       onAssignMe={assignMe}
@@ -289,8 +320,17 @@ export default function Board({ project, people, readOnly, canModerate, tasksApi
                     />
                   ))}
                 </ul>
-                {items.length === 0 && <p className="column-empty">{hasFilters && total > 0 ? 'Nessun task corrisponde ai filtri' : 'Nessun task'}</p>}
-                {overColumn === column.value && <p className="column-drop" aria-hidden="true">Rilascia qui per spostare</p>}
+                {items.length === 0 && (
+                  <div className="column-empty">
+                    <p>{hasFilters && total > 0 ? 'Nessun task corrisponde ai filtri' : 'Nessun task'}</p>
+                    {!(hasFilters && total > 0) && !readOnly && <small>Trascina qui una scheda o aggiungine una.</small>}
+                  </div>
+                )}
+                {overColumn === column.value && draggingTask?.status !== column.value && (
+                  <p className="column-drop" aria-hidden="true">
+                    <Icon name="board" size={16} /> Rilascia per spostare in “{column.label}”
+                  </p>
+                )}
                 {!readOnly && (
                   <button className="add-task" onClick={() => setModal({ status: column.value })}>
                     <Icon name="plus" size={16} /> Aggiungi task

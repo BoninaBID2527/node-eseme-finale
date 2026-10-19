@@ -1,10 +1,10 @@
 # Guida alla discussione orale
 
-Una traccia per presentare TaskFlow in 10–15 minuti e rispondere alle domande più probabili. Il codice citato è quello vero del progetto.
+Una traccia per presentare BONHUB in 10–15 minuti e rispondere alle domande più probabili. Il codice citato è quello vero del progetto.
 
 ## 1. Il progetto in 30 secondi
 
-> TaskFlow è una piattaforma per gestire progetti di gruppo: ogni progetto ha una **bacheca a colonne** (Da fare, In corso, Completato), una **chat**, dei **membri** e un **catalogo pubblico** in cui trovare progetti a cui unirsi. Quando qualcuno crea o sposta un task, chat e bacheca degli altri membri si aggiornano **in tempo reale**. Gli **amministratori** moderano i progetti segnalati e bloccano gli utenti.
+> BONHUB è una piattaforma per gestire progetti di gruppo: ogni progetto ha una **bacheca a colonne** (Da fare, In corso, Completato), una **chat**, dei **membri** e un **catalogo pubblico** in cui trovare progetti a cui unirsi. Quando qualcuno crea o sposta un task, chat e bacheca degli altri membri si aggiornano **in tempo reale**. Gli **amministratori** moderano i progetti segnalati e bloccano gli utenti.
 
 **Stack:** Node.js + Express (API REST), MongoDB con Mongoose, Socket.IO (tempo reale), JWT per l'autenticazione, React + Vite per l'interfaccia.
 

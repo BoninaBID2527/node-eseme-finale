@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, toQuery } from '../api';
 import Icon from '../components/Icon';
+import PageHeader from '../components/PageHeader';
 import Pagination from '../components/Pagination';
 import ProjectCard from '../components/ProjectCard';
 import { GridSkeleton } from '../components/Skeleton';
@@ -35,15 +36,16 @@ export default function MyProjects() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">I miei progetti</h1>
-          <p className="page-lead">I progetti che hai creato e quelli in cui lavori con altri membri.</p>
-        </div>
-        <Link to="/projects/new" className="btn btn-primary">
-          <Icon name="plus" size={18} /> Nuovo progetto
-        </Link>
-      </header>
+      <PageHeader
+        eyebrow="Lavoro"
+        title="I miei progetti"
+        lead="I progetti che hai creato e quelli in cui lavori con altri membri."
+        actions={
+          <Link to="/projects/new" className="btn btn-primary">
+            <Icon name="plus" size={18} /> Nuovo progetto
+          </Link>
+        }
+      />
 
       <div className="toolbar">
         <div className="segmented" role="group" aria-label="Filtra per ruolo">
@@ -91,10 +93,11 @@ export default function MyProjects() {
       )}
       {!error && data && data.projects.length > 0 && (
         <>
-          <p className="muted results-count" aria-live="polite" role="status">
+          <p className="results-count" aria-live="polite" role="status">
             <strong className="tabular">{data.total}</strong> {data.total === 1 ? 'progetto' : 'progetti'}
+            {active > 0 && ' con i filtri scelti'}
           </p>
-          <div className="grid" aria-busy={loading} style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 150ms' }}>
+          <div className="grid stagger" aria-busy={loading} style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 150ms' }}>
             {data.projects.map((p) => (
               <ProjectCard key={p._id} project={p} showProgress />
             ))}

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import Avatar from '../components/Avatar';
 import Field from '../components/Field';
+import Icon from '../components/Icon';
+import PageHeader from '../components/PageHeader';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
@@ -57,20 +59,28 @@ export default function Profile() {
 
   return (
     <div className="page page-narrow">
-      <header className="page-head">
-        <div className="profile-head">
-          <Avatar name={user.name} size={64} />
-          <div>
-            <h1 className="page-title">{user.name}</h1>
-            <p className="page-lead">
-              {user.role === 'admin' ? 'Amministratore' : 'Utente'} · iscritto dal {formatDate(user.createdAt)}
-            </p>
-          </div>
+      <PageHeader eyebrow="Account" title="Profilo" lead="Gestisci i tuoi dati, la sicurezza dell'account e la sessione." />
+
+      <section className="card profile-card" aria-label="Il tuo account">
+        <Avatar name={user.name} size={72} />
+        <div className="grow">
+          <h2>{user.name}</h2>
+          <p className="muted truncate">{user.email}</p>
+          <p className="profile-meta">
+            <span className={`role-tag${user.role === 'admin' ? ' is-owner' : ''}`}>{user.role === 'admin' ? 'Amministratore' : 'Utente'}</span>
+            <span className="muted">Iscritto dal {formatDate(user.createdAt)}</span>
+          </p>
         </div>
-      </header>
+      </section>
 
       <section className="card panel" aria-labelledby="p-data">
-        <h2 id="p-data">Dati personali</h2>
+        <div className="panel-title">
+          <Icon name="user" size={20} />
+          <div>
+            <h2 id="p-data">Dati personali</h2>
+            <p className="muted">Il nome compare accanto ai tuoi task, messaggi e commenti.</p>
+          </div>
+        </div>
         <form className="form" onSubmit={saveName} noValidate>
           <Field label="Nome" error={nameErrors.name}>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
@@ -78,8 +88,8 @@ export default function Profile() {
           <Field label="Email" hint="L'email è il tuo identificativo di accesso e non si può modificare.">
             <input value={user.email} readOnly disabled />
           </Field>
-          <div>
-            <button className="btn btn-primary" disabled={savingName || name.trim() === user.name}>
+          <div className="form-actions">
+            <button className={`btn btn-primary${savingName ? ' is-loading' : ''}`} disabled={savingName || name.trim() === user.name}>
               Salva modifiche
             </button>
           </div>
@@ -87,28 +97,39 @@ export default function Profile() {
       </section>
 
       <section className="card panel" aria-labelledby="p-pw">
-        <h2 id="p-pw">Password</h2>
+        <div className="panel-title">
+          <Icon name="lock" size={20} />
+          <div>
+            <h2 id="p-pw">Password</h2>
+            <p className="muted">Cambiandola, le altre sessioni aperte verranno chiuse.</p>
+          </div>
+        </div>
         <form className="form" onSubmit={savePassword} noValidate>
           <Field label="Password attuale" error={pwErrors.currentPassword}>
             <input type="password" autoComplete="current-password" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
           </Field>
-          <Field label="Nuova password" error={pwErrors.newPassword} hint="Almeno 8 caratteri. Cambiandola, le altre sessioni aperte verranno chiuse.">
+          <Field label="Nuova password" error={pwErrors.newPassword} hint="Almeno 8 caratteri.">
             <input type="password" autoComplete="new-password" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
           </Field>
-          <div>
-            <button className="btn btn-primary" disabled={savingPw || !pw.currentPassword || !pw.newPassword}>
+          <div className="form-actions">
+            <button className={`btn btn-primary${savingPw ? ' is-loading' : ''}`} disabled={savingPw || !pw.currentPassword || !pw.newPassword}>
               Cambia password
             </button>
           </div>
         </form>
       </section>
 
-      <section className="card panel" aria-labelledby="p-session">
-        <h2 id="p-session">Sessione</h2>
-        <p className="muted">Esci da TaskFlow su questo dispositivo. La sessione viene invalidata anche sul server.</p>
-        <div>
+      <section className="card panel panel-session" aria-labelledby="p-session">
+        <div className="panel-title">
+          <Icon name="logout" size={20} />
+          <div>
+            <h2 id="p-session">Sessione</h2>
+            <p className="muted">Esci da BONHUB su questo dispositivo. La sessione viene invalidata anche sul server.</p>
+          </div>
+        </div>
+        <div className="form-actions">
           <button className="btn" onClick={async () => { await logout(); navigate('/login'); }}>
-            Esci
+            <Icon name="logout" size={16} /> Esci
           </button>
         </div>
       </section>

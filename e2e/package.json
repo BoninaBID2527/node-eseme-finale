@@ -2,7 +2,7 @@
   "name": "taskflow-e2e",
   "version": "1.0.0",
   "private": true,
-  "description": "Test end-to-end di TaskFlow (Playwright + axe-core)",
+  "description": "Test end-to-end di BONHUB (Playwright + axe-core)",
   "type": "module",
   "scripts": {
     "test": "node e2e.mjs"

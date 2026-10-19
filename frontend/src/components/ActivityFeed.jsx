@@ -45,24 +45,26 @@ export default function ActivityFeed({ projectId }) {
   };
 
   if (!items) return <Skeleton width="100%" height={120} radius={10} />;
-  if (items.length === 0) return <p className="muted">Nessuna attività registrata.</p>;
+  if (items.length === 0) return <p className="muted">Nessuna attività registrata: le azioni del team compariranno qui.</p>;
 
   return (
     <>
       <ol className="activity" data-testid="activity">
         {items.map((a) => (
           <li key={a._id} className="activity-item">
-            <span className="activity-icon">
-              <Icon name={ACTIVITY_ICONS[a.type] || 'info'} size={15} />
+            <span className={`activity-icon tone-${a.type.split('_')[0]}`}>
+              <Icon name={ACTIVITY_ICONS[a.type] || 'info'} size={14} />
             </span>
-            <span className="grow">{a.text}</span>
-            <time dateTime={a.createdAt} className="muted">{timeAgo(a.createdAt)}</time>
+            <div className="grow">
+              <p>{a.text}</p>
+              <time dateTime={a.createdAt} className="meta">{timeAgo(a.createdAt)}</time>
+            </div>
           </li>
         ))}
       </ol>
       {hasMore && (
-        <button className="btn btn-sm" onClick={loadMore} disabled={loadingMore}>
-          {loadingMore ? 'Caricamento…' : 'Mostra attività precedenti'}
+        <button className={`btn btn-sm${loadingMore ? ' is-loading' : ''}`} onClick={loadMore} disabled={loadingMore}>
+          Mostra attività precedenti
         </button>
       )}
     </>

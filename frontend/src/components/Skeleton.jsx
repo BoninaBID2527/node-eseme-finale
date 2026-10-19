@@ -3,10 +3,10 @@ export function Skeleton({ width, height = 16, radius = 6, className = '' }) {
   return <span className={`skeleton ${className}`} style={{ width, height, borderRadius: radius }} aria-hidden="true" />;
 }
 
-export function CardSkeleton() {
+export function CardSkeleton({ featured = false }) {
   return (
-    <div className="project-card skeleton-card" aria-hidden="true">
-      <Skeleton height={112} radius={0} width="100%" />
+    <div className={`project-card skeleton-card${featured ? ' is-featured' : ''}`} aria-hidden="true">
+      <Skeleton height={featured ? '100%' : 148} radius={0} width="100%" className="skeleton-cover" />
       <div className="project-card-body">
         <Skeleton width="40%" height={12} />
         <Skeleton width="85%" height={20} />
@@ -33,11 +33,11 @@ export function RowsSkeleton({ rows = 4 }) {
   );
 }
 
-export function GridSkeleton({ count = 6 }) {
+export function GridSkeleton({ count = 6, className = 'grid', featured = false }) {
   return (
-    <div className="grid" role="status" aria-label="Caricamento in corso">
+    <div className={className} role="status" aria-label="Caricamento in corso">
       {Array.from({ length: count }, (_, i) => (
-        <CardSkeleton key={i} />
+        <CardSkeleton key={i} featured={featured && i === 0} />
       ))}
     </div>
   );

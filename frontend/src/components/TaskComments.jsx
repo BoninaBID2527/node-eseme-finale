@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRealtime, useSocketEvent } from '../context/RealtimeContext';
 import { useToast } from '../context/ToastContext';
-import { errorMessage, timeAgo } from '../utils';
+import { errorMessage, formatDate, timeAgo } from '../utils';
 import Avatar from './Avatar';
 import Icon from './Icon';
 
@@ -88,7 +88,13 @@ export default function TaskComments({ projectId, taskId, readOnly, canModerate 
           Carica commenti precedenti
         </button>
       )}
-      {comments?.length === 0 && <p className="muted">Nessun commento. Scrivi il primo per aggiornare il team su questo task.</p>}
+      {comments === null && <span className="spinner comments-loading" role="status" aria-label="Caricamento dei commenti" />}
+      {comments?.length === 0 && (
+        <p className="comments-empty">
+          <Icon name="message" size={18} />
+          <span>Nessun commento. Scrivi il primo per aggiornare il team su questo task.</span>
+        </p>
+      )}
       <ul className="comment-list" data-testid="comments">
         {comments?.map((c) => (
           <li key={c._id} className="comment">
@@ -96,7 +102,7 @@ export default function TaskComments({ projectId, taskId, readOnly, canModerate 
             <div className="comment-body">
               <div className="comment-head">
                 <strong>{c.author.name}</strong>
-                <time dateTime={c.createdAt} className="muted">{timeAgo(c.createdAt)}</time>
+                <time dateTime={c.createdAt} className="muted" title={formatDate(c.createdAt)}>{timeAgo(c.createdAt)}</time>
                 {!readOnly && (c.author._id === user._id || canModerate) && (
                   <button className="icon-btn comment-delete" onClick={() => remove(c)} aria-label={`Elimina il commento di ${c.author.name}`}>
                     <Icon name="trash" size={15} />
@@ -111,13 +117,17 @@ export default function TaskComments({ projectId, taskId, readOnly, canModerate 
 
       {!readOnly && (
         <form className="comment-form" onSubmit={send}>
-          <label htmlFor="comment-input" className="visually-hidden">Scrivi un commento</label>
-          <textarea id="comment-input" rows={2} value={text} onChange={(e) => { setText(e.target.value); setError(''); }} maxLength={1000} placeholder="Scrivi un commento…" aria-invalid={error ? true : undefined} />
-          {error && <p className="field-error">{error}</p>}
-          <div>
-            <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()}>
-              <Icon name="send" size={14} /> Commenta
-            </button>
+          <Avatar name={user.name} size={30} />
+          <div className="comment-composer">
+            <label htmlFor="comment-input" className="visually-hidden">Scrivi un commento</label>
+            <textarea id="comment-input" rows={2} value={text} onChange={(e) => { setText(e.target.value); setError(''); }} maxLength={1000} placeholder="Scrivi un commento…" aria-invalid={error ? true : undefined} />
+            {error && <p className="field-error" role="alert">{error}</p>}
+            <div className="comment-composer-foot">
+              <small className="meta">{text.length}/1000</small>
+              <button className={`btn btn-primary btn-sm${busy ? ' is-loading' : ''}`} disabled={busy || !text.trim()}>
+                <Icon name="send" size={14} /> Commenta
+              </button>
+            </div>
           </div>
         </form>
       )}

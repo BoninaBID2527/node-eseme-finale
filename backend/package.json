@@ -1,7 +1,7 @@
 {
   "name": "taskflow-backend",
   "version": "1.0.0",
-  "description": "API REST e Socket.IO di TaskFlow",
+  "description": "API REST e Socket.IO di BONHUB",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

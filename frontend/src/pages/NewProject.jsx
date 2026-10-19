@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import PageHeader from '../components/PageHeader';
 import ProjectForm from '../components/ProjectForm';
 import { useToast } from '../context/ToastContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
@@ -17,13 +18,12 @@ export default function NewProject() {
 
   return (
     <div className="page page-narrow">
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">Nuovo progetto</h1>
-          <p className="page-lead">Dai un nome al progetto: potrai invitare i membri e creare i task subito dopo.</p>
-        </div>
-      </header>
-      <div className="card panel">
+      <PageHeader
+        eyebrow="Progetti"
+        title="Nuovo progetto"
+        lead="Dai un nome al progetto: potrai invitare i membri e creare i task subito dopo."
+      />
+      <div className="card panel new-project">
         <ProjectForm onSubmit={create} submitLabel="Crea progetto" onCancel={() => navigate(-1)} />
       </div>
     </div>

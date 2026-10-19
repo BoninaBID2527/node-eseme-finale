@@ -1,0 +1,137 @@
+/* Dashboard, i miei progetti/task, notifiche, profilo, inviti.
+   Solo token di tokens.css e componenti di ui.css; qui vivono le composizioni specifiche di queste pagine. */
+
+/* ---------- Barre filtri e conteggi ---------- */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-bottom: var(--s-4); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.toolbar .segmented { background: var(--surface-3); }
+.toolbar.is-plain { padding: 0; border: 0; background: none; }
+.toolbar-field, .toolbar-select { width: auto; min-width: 170px; }
+.toolbar-search { flex: 1; min-width: 220px; max-width: 360px; margin-left: auto; }
+.results-count { margin-bottom: var(--s-4); font-size: var(--fs-sm); color: var(--text-2); }
+.results-count strong { font-family: var(--font-display); font-size: var(--fs-md); color: var(--text); }
+.load-more { display: flex; justify-content: center; margin-top: var(--s-5); }
+.section-first { margin-bottom: var(--s-5); }
+
+/* ---------- Etichetta di ruolo (proprietario / membro) ---------- */
+.role-tag { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.role-tag.is-owner { background: var(--ink); color: var(--yellow); }
+
+/* ---------- Dashboard ---------- */
+.dash-invites { margin-bottom: var(--s-6); }
+.dash-invites .card { border-left: 4px solid var(--yellow); }
+.dash-invites h2, .dash-main h2, .dash-side h2 { display: flex; align-items: center; gap: var(--s-2); }
+
+/* Riepilogo: un'unica superficie divisa in quattro segmenti, non quattro tessere identiche. */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: var(--s-8); overflow: hidden; }
+.stat { position: relative; display: flex; flex-direction: column; gap: 2px; padding: var(--s-5) var(--s-6); color: inherit; text-decoration: none; transition: background var(--t-fast); }
+.stat + .stat { border-left: 1px solid var(--line); }
+a.stat:hover { background: var(--surface-2); }
+a.stat:hover .stat-value { transform: translateX(2px); }
+.stat-value { font-family: var(--font-display); font-size: var(--fs-stat); font-weight: 700; line-height: 1.05; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; transition: transform var(--t); }
+.stat-label { font-size: var(--fs-sm); font-weight: 650; color: var(--text-2); }
+.stat small { color: var(--text-3); font-size: var(--fs-xs); }
+/* Gli accenti compaiono solo dove serve attenzione. */
+.stat-danger .stat-value { color: var(--danger); }
+.stat-warn .stat-value::after { content: ''; display: inline-block; width: 9px; height: 9px; margin-left: 8px; border-radius: 3px; background: var(--yellow); box-shadow: 0 0 0 1px var(--ink); vertical-align: middle; }
+.stat-danger::before { content: ''; position: absolute; left: 0; top: var(--s-5); bottom: var(--s-5); width: 3px; border-radius: 0 3px 3px 0; background: var(--danger); }
+
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--s-8); align-items: start; }
+.list-group { padding: 10px var(--s-5); background: var(--surface-2); border-bottom: 1px solid var(--line); font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-2); }
+.list-group.is-overdue { color: var(--danger); background: var(--danger-soft); }
+.dash-task { position: relative; padding-left: var(--s-5); }
+.dash-task::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--line-strong); }
+.dash-task[data-priority='high']::before { background: var(--ink); }
+.dash-task[data-priority='medium']::before { background: var(--yellow); }
+.dash-task.is-overdue { box-shadow: none; }
+.dash-task-project, .task-row-sub { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.dash-task-meta, .task-row-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 12px; flex: none; }
+.dash-task-meta { flex-direction: column; align-items: flex-end; gap: 6px; }
+.dash-task:hover strong, .task-row-main:hover strong { text-decoration: underline; text-decoration-color: var(--yellow); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+
+.dash-project { align-items: center; }
+.dash-project .grow { display: flex; flex-direction: column; gap: 6px; }
+.dash-project-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: var(--fs-xs); }
+.dash-project .progress-bar { display: block; height: 5px; }
+.row-arrow { flex: none; color: var(--text-3); transition: transform var(--t-fast), color var(--t-fast); }
+a.list-row:hover .row-arrow { transform: translateX(3px); color: var(--ink); }
+
+/* ---------- Inviti ---------- */
+.invitations { display: flex; flex-direction: column; }
+.invitation { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); }
+.invitation:last-child { border-bottom: 0; }
+.invitation-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius); background: var(--yellow); flex: none; }
+.invitation-actions { display: flex; gap: var(--s-2); flex: none; }
+
+/* ---------- I miei task ---------- */
+.task-group { margin-bottom: var(--s-6); }
+.task-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: var(--fs-md); }
+.task-group-title.is-overdue { color: var(--danger); }
+.task-row { position: relative; padding: var(--s-3) var(--s-5); }
+.task-row::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--line-strong); }
+.task-row[data-priority='high']::before { background: var(--ink); }
+.task-row[data-priority='medium']::before { background: var(--yellow); }
+.task-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+.task-row-main strong.is-done { text-decoration: line-through; color: var(--text-3); }
+.check { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 26px; height: 26px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface); color: transparent; cursor: pointer; transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast); }
+.check:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); background: var(--yellow-soft); transform: scale(1.08); }
+.check:active:not(:disabled) { transform: scale(0.92); }
+.check.is-done { background: var(--ink); border-color: var(--ink); color: var(--yellow); }
+.check:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Notifiche ---------- */
+.notif-list li { border-bottom: 1px solid var(--line); }
+.notif-list li:last-child { border-bottom: 0; }
+.notif { position: relative; display: flex; align-items: center; gap: var(--s-4); width: 100%; padding: var(--s-4) var(--s-5); border: 0; background: var(--surface-2); color: var(--text-2); text-align: left; cursor: pointer; transition: background var(--t-fast); }
+.notif:hover { background: var(--surface-3); }
+.notif.is-unread { background: var(--surface); color: var(--text); }
+.notif.is-unread::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--yellow); box-shadow: 1px 0 0 var(--ink); }
+.notif.is-unread:hover { background: var(--yellow-soft); }
+.notif:not(.is-unread) .notif-icon { filter: grayscale(0.6); opacity: 0.75; }
+.notif-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: var(--radius); background: var(--surface-3); color: var(--text-2); }
+.notif-icon.tone-work { background: var(--yellow); color: var(--ink); }
+.notif-icon.tone-people { background: var(--ink); color: var(--yellow); }
+.notif-icon.tone-alert { background: var(--danger-soft); color: var(--danger); }
+.notif-text { display: flex; flex-direction: column; gap: 3px; }
+.notif-text small { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); }
+.is-unread .notif-text > span { font-weight: 650; }
+.unread-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+
+/* ---------- Profilo ---------- */
+.profile-card { display: flex; align-items: center; gap: var(--s-5); padding: var(--s-6); margin-bottom: var(--s-5); background: var(--ink); border-color: var(--ink); color: var(--white); }
+.profile-card .muted { color: var(--on-dark-2); }
+.profile-card .avatar { box-shadow: 0 0 0 3px var(--yellow); }
+.profile-card h2 { font-size: var(--fs-xl); }
+.profile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: var(--fs-sm); }
+.profile-card .role-tag { background: var(--ink-3); color: var(--on-dark); }
+.profile-card .role-tag.is-owner { background: var(--yellow); color: var(--ink); }
+.panel-title { display: flex; align-items: flex-start; gap: var(--s-3); }
+.panel-title > .icon { flex: none; margin-top: 2px; padding: 8px; box-sizing: content-box; border-radius: var(--radius); background: var(--surface-3); }
+.panel-title p { font-size: var(--fs-sm); margin-top: 2px; }
+.panel-session { margin-bottom: 0; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(3) { border-left: 0; }
+  .stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .toolbar { padding: var(--s-3); }
+  .toolbar-search { max-width: none; margin-left: 0; flex-basis: 100%; }
+  .toolbar .segmented { max-width: 100%; }
+  .list-row { flex-wrap: wrap; gap: 8px 12px; }
+  .dash-task-meta { flex-direction: row; align-items: center; flex-basis: 100%; justify-content: flex-start; }
+  .invitation { flex-wrap: wrap; }
+  .invitation-actions { width: 100%; }
+  .task-row-main { flex-basis: calc(100% - 50px); }
+  .task-row-meta { flex-basis: 100%; justify-content: flex-start; padding-left: 38px; }
+}
+
+@media (max-width: 520px) {
+  .stat { padding: var(--s-4); }
+  .stat-value { font-size: 1.85rem; }
+  .profile-card { flex-direction: column; align-items: flex-start; }
+  .notif { padding: var(--s-3) var(--s-4); }
+}

@@ -20,57 +20,69 @@ function seeded(seed) {
   };
 }
 
-// Combinazioni nella palette del marchio. Il fondo giallo è volutamente più raro (1 su 5) per non appesantire le griglie.
-const INK = { bg: '#101010', bar: '#2C2C2C', accent: '#FFD600' };
-const GRAY = { bg: '#E9E9E6', bar: '#101010', accent: '#FFD600' };
-const YELLOW = { bg: '#FFD600', bar: '#101010', accent: '#FFFFFF' };
-const THEMES = [INK, GRAY, INK, GRAY, YELLOW];
+// Cinque temi nella palette del marchio (nero, giallo, bianco, grigi). Il giallo pieno è raro per non appesantire le griglie.
+const THEMES = [
+  { bg: '#101010', bar: '#2d2d2d', accent: '#FFD600', arrow: '#101010', grid: '#ffffff' },
+  { bg: '#E7E7E3', bar: '#101010', accent: '#FFD600', arrow: '#101010', grid: '#101010' },
+  { bg: '#1c1c1c', bar: '#f4f4f0', accent: '#FFD600', arrow: '#101010', grid: '#ffffff' },
+  { bg: '#FFFFFF', bar: '#101010', accent: '#FFD600', arrow: '#101010', grid: '#101010' },
+  { bg: '#FFD600', bar: '#101010', accent: '#FFFFFF', arrow: '#101010', grid: '#101010' },
+];
 
-// Copertina di fallback: barre sfalsate in stile diagramma di Gantt, la "timeline" del progetto.
-// Il seme (id del progetto) decide tema, numero e lunghezza delle barre.
-export function GeneratedCover({ seed }) {
-  const { theme, bars } = useMemo(() => {
+// Copertina di riserva: barre arrotondate impilate a gradini che salgono verso l'angolo in alto a destra, come nel marchio.
+// La barra evidenziata termina con una freccia. Il seme (id del progetto) decide tema, numero e lunghezza delle barre.
+export function GeneratedCover({ seed, tall = false, wide = false }) {
+  // `wide` è la versione per la testata della pagina progetto (fascia molto larga): la composizione occupa la metà destra.
+  const W = wide ? 960 : 320;
+  const H = tall ? 290 : 160;
+  const { theme, bars, accent, gridX } = useMemo(() => {
     const h = hash(String(seed));
     const rand = seeded(h);
-    const count = 4 + Math.floor(rand() * 3);
-    const accentIndex = Math.floor(rand() * count);
+    const count = 4 + Math.floor(rand() * 2); // 4 o 5 barre
+    const step = 16 + rand() * 10;
     const list = [];
-    let start = 18 + rand() * 40;
     for (let i = 0; i < count; i += 1) {
-      const width = 70 + rand() * 120;
-      list.push({ x: Math.min(start, 320 - width - 16), width, accent: i === accentIndex });
-      start += 10 + rand() * 55;
+      // i = 0 è la barra più in alto: parte più a destra, così il profilo sale verso destra.
+      const width = (74 + rand() * 96) * (wide ? 1.5 : 1);
+      const x = (wide ? 400 : 26) + (count - 1 - i) * step * (wide ? 2 : 1) + rand() * 14;
+      list.push({ x, width: Math.min(width, W - 20 - x - 34), y: 24 + i * ((H - 48) / count) });
     }
-    return { theme: THEMES[h % THEMES.length], bars: list };
-  }, [seed]);
+    return { theme: THEMES[h % THEMES.length], bars: list, accent: Math.floor(rand() * 2), gridX: 40 + Math.floor(rand() * 40) };
+  }, [seed, H, W, wide]);
 
-  const rowHeight = 120 / (bars.length + 1);
+  const barHeight = tall ? 20 : 15;
   return (
-    <svg className="cover-art" viewBox="0 0 320 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-      <rect width="320" height="120" fill={theme.bg} />
-      {bars.map((bar, i) => (
-        <rect
-          key={i}
-          x={bar.x}
-          y={rowHeight * (i + 1) - 5}
-          width={bar.width}
-          height="10"
-          rx="5"
-          fill={bar.accent ? theme.accent : theme.bar}
-        />
+    <svg className="cover-art" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <rect width={W} height={H} fill={theme.bg} />
+      {Array.from({ length: wide ? 12 : 4 }, (_, i) => i).map((i) => (
+        <rect key={i} x={gridX + i * 78} y="0" width="1" height={H} fill={theme.grid} opacity="0.07" />
       ))}
+      {bars.map((bar, i) => {
+        const isAccent = i === accent;
+        return (
+          <g key={i}>
+            <rect x={bar.x} y={bar.y} width={bar.width} height={barHeight} rx={barHeight / 2} fill={isAccent ? theme.accent : theme.bar} />
+            {isAccent && (
+              <g transform={`translate(${bar.x + bar.width + 20} ${bar.y + barHeight / 2})`}>
+                <circle r="14" fill={theme.accent} />
+                <path d="M-5 5 L5 -5 M-3 -5 H5 V3" fill="none" stroke={theme.arrow} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              </g>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
 // Copertina caricata dal proprietario oppure quella generata.
-export default function ProjectCover({ project, className = '' }) {
+export default function ProjectCover({ project, className = '', tall = false, wide = false }) {
   return (
     <div className={`cover ${className}`}>
       {project.coverImage ? (
         <img src={project.coverImage} alt="" loading="lazy" />
       ) : (
-        <GeneratedCover seed={project._id || project.title} />
+        <GeneratedCover seed={project._id || project.title} tall={tall} wide={wide} />
       )}
     </div>
   );

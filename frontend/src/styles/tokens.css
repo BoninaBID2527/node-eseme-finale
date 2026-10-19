@@ -1,53 +1,96 @@
-/* Token di design di TaskFlow. Cambiando questi valori cambia l'aspetto di tutta l'app.
-   Palette: nero/carbone, giallo, bianco + grigi neutri. Il giallo è riservato ad azioni principali,
-   selezioni, focus e dettagli di marchio; sui pulsanti gialli il testo è sempre nero. */
+/* Token di design di BONHUB: l'unico posto dove vivono colori, tipografia, spaziature, raggi, ombre e movimento.
+   Cambiando questi valori cambia l'aspetto di tutta l'app.
+   Palette: nero/carbone, giallo, bianco + grigi neutri. Il giallo è riservato ad azioni principali, selezioni,
+   focus e dettagli di marchio; sui fondi gialli il testo è sempre nero. */
 :root {
   /* Marchio */
   --ink: #101010;
-  --ink-2: #1b1b1b;
-  --ink-3: #272727;
-  --ink-line: #2f2f2f;
+  --ink-2: #1a1a1a;
+  --ink-3: #262626;
+  --ink-4: #333333;
+  --ink-line: #2c2c2c;
   --yellow: #ffd600;
   --yellow-hover: #ffe033;
   --yellow-press: #e8c200;
-  --yellow-soft: #fff6bf;
+  --yellow-soft: #fff7c2;
+  --yellow-line: #ecd56a;
   --white: #ffffff;
 
   /* Superfici e testi (grigi neutri) */
-  --bg: #f4f4f4;
+  --bg: #f5f5f3;
   --surface: #ffffff;
-  --surface-2: #fafafa;
-  --line: #e4e4e4;
-  --line-strong: #cdcdcd;
+  --surface-2: #fafaf9;
+  --surface-3: #efefed;
+  --line: #e6e6e3;
+  --line-strong: #cfcfcb;
   --text: #101010;
-  --text-2: #4b4b4b; /* 8.4:1 su bianco */
-  --text-3: #6b6b6b; /* 5.3:1 su bianco, 4.8:1 sul fondo */
+  --text-2: #4a4a47; /* 8.5:1 su bianco */
+  --text-3: #6a6a66; /* 5.3:1 su bianco */
   --on-dark: #f2f2f2;
-  --on-dark-2: #a8a8a8; /* 8:1 sul nero */
+  --on-dark-2: #a9a9a5; /* 8:1 sul nero */
 
-  /* Colori semantici, sobri */
+  /* Colori semantici, sobri: errori, avvisi, successi */
   --danger: #b42318;
+  --danger-hover: #8f1c12;
   --danger-soft: #fdecea;
+  --danger-line: #f1b8b2;
   --success: #1b7f3b;
   --success-soft: #e7f5ec;
   --live: #46c46e;
 
+  /* Tipografia: Sora (titoli, numeri, etichette) + Inter (testi, form, chat, task) */
+  --font-display: 'Sora Variable', 'Sora', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fs-2xs: 0.6875rem; /* 11px: etichette in maiuscolo */
+  --fs-xs: 0.75rem; /* 12px: metadati, badge */
+  --fs-sm: 0.8125rem; /* 13px: testi secondari, pulsanti piccoli */
+  --fs-base: 0.9375rem; /* 15px: testo corrente */
+  --fs-md: 1.0625rem; /* 17px: titoli di card, testo introduttivo */
+  --fs-lg: 1.25rem; /* 20px: titoli di sezione */
+  --fs-xl: 1.625rem; /* 26px */
+  --fs-2xl: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem); /* titolo di pagina */
+  --fs-stat: clamp(2rem, 1.5rem + 1.4vw, 2.75rem); /* grandi numeri */
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-body: 1.55;
+  --track-display: -0.025em;
+  --track-label: 0.07em;
+  --measure: 66ch; /* lunghezza massima delle righe di testo lungo */
+
+  /* Spaziature (base 4 px) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
   /* Forma e profondità */
   --radius-sm: 6px;
   --radius: 10px;
-  --radius-lg: 16px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
   --shadow-sm: 0 1px 2px rgba(16, 16, 16, 0.06);
-  --shadow: 0 6px 20px rgba(16, 16, 16, 0.1);
-  --shadow-lg: 0 20px 56px rgba(16, 16, 16, 0.28);
+  --shadow: 0 8px 24px -6px rgba(16, 16, 16, 0.16), 0 2px 6px rgba(16, 16, 16, 0.06);
+  --shadow-lg: 0 28px 64px -12px rgba(16, 16, 16, 0.38);
+  --ring: 0 0 0 4px var(--yellow);
 
-  /* Tipografia: Space Grotesk per titoli e numeri, Manrope per testi e controlli */
-  --font-display: 'Space Grotesk Variable', 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-body: 'Manrope Variable', 'Manrope', 'Segoe UI', system-ui, -apple-system, sans-serif;
-
-  /* Movimento: brevi (150–250 ms) */
+  /* Movimento: brevi (140–260 ms). Con prefers-reduced-motion si azzerano (vedi base.css). */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --t-fast: 150ms var(--ease);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 140ms var(--ease);
   --t: 200ms var(--ease);
+  --t-slow: 320ms var(--ease-out);
 
-  --sidebar-w: 264px;
+  /* Livelli sovrapposti */
+  --z-sticky: 40;
+  --z-sidebar: 70;
+  --z-modal: 100;
+  --z-toast: 300;
+
+  --sidebar-w: 256px;
+  --rail-w: 76px;
 }

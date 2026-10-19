@@ -1,8 +1,11 @@
 import { Children, cloneElement, isValidElement, useId } from 'react';
+import Icon from './Icon';
 
 // Etichetta + campo + messaggio d'errore collegati tra loro per gli screen reader.
 // Il messaggio compare accanto al campo ed è associato tramite aria-describedby.
-export default function Field({ label, error, hint, optional, children, className = '' }) {
+//   counter    testo breve a destra dell'etichetta (es. "12/100")
+//   adornment  elemento accanto al campo, dentro lo stesso riquadro (es. il pulsante "mostra password")
+export default function Field({ label, error, hint, optional, counter, adornment, children, className = '' }) {
   const id = useId();
   const describedBy = [error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(' ') || undefined;
 
@@ -14,11 +17,21 @@ export default function Field({ label, error, hint, optional, children, classNam
 
   return (
     <div className={`field${error ? ' has-error' : ''} ${className}`}>
-      <label htmlFor={id}>
-        {label}
-        {optional && <span className="field-optional"> (facoltativo)</span>}
-      </label>
-      {control}
+      <div className="field-label-row">
+        <label htmlFor={id}>
+          {label}
+          {optional && <span className="field-optional"> (facoltativo)</span>}
+        </label>
+        {counter && <span className="field-counter" aria-hidden="true">{counter}</span>}
+      </div>
+      {adornment ? (
+        <div className="input-wrap">
+          {control}
+          {adornment}
+        </div>
+      ) : (
+        control
+      )}
       {hint && !error && (
         <p className="field-hint" id={`${id}-hint`}>
           {hint}
@@ -26,7 +39,8 @@ export default function Field({ label, error, hint, optional, children, classNam
       )}
       {error && (
         <p className="field-error" id={`${id}-error`}>
-          {error}
+          <Icon name="alert" size={15} />
+          <span>{error}</span>
         </p>
       )}
     </div>

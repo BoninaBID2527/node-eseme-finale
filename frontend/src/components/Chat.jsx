@@ -15,7 +15,7 @@ const merge = (a, b) => {
   return [...byId.values()].sort((x, y) => (x._id < y._id ? -1 : 1));
 };
 
-export default function Chat({ project, readOnly }) {
+export default function Chat({ project, readOnly, newFrom = null }) {
   const { user } = useAuth();
   const toast = useToast();
   const { connected, resyncKey } = useRealtime();
@@ -105,8 +105,21 @@ export default function Chat({ project, readOnly }) {
     if (e.key === 'Enter' && !e.shiftKey) send(e);
   };
 
+  const participants = project.members.length + 1;
+
   return (
     <div className="chat card">
+      <header className="chat-head">
+        <span className="chat-head-icon"><Icon name="message" size={18} /></span>
+        <div className="grow">
+          <h2>Chat del progetto</h2>
+          <p className="meta">{participants} {participants === 1 ? 'partecipante' : 'partecipanti'}</p>
+        </div>
+        <span className={`chat-status${connected ? ' is-on' : ''}`}>
+          <span className="chat-status-dot" aria-hidden="true" />
+          {connected ? 'In diretta' : 'Offline'}
+        </span>
+      </header>
       {!connected && (
         <p className="chat-offline" role="status">
           <Icon name="wifi-off" size={16} /> Connessione live interrotta: i nuovi messaggi arriveranno appena torna la rete.
@@ -124,20 +137,23 @@ export default function Chat({ project, readOnly }) {
         )}
         {messages?.length === 0 && (
           <div className="chat-empty">
-            <Icon name="message" size={28} />
-            <p>Nessun messaggio ancora.</p>
-            <small className="muted">Scrivi il primo per salutare il team.</small>
+            <span className="state-icon"><Icon name="message" size={24} /></span>
+            <p><strong>Nessun messaggio ancora</strong></p>
+            <small>Scrivi il primo per salutare il team.</small>
           </div>
         )}
         {messages?.map((m, i) => {
           const mine = m.author._id === user._id;
           const newDay = i === 0 || !sameDay(messages[i - 1].createdAt, m.createdAt);
-          const grouped = !newDay && messages[i - 1].author._id === m.author._id;
+          const isNewFrom = newFrom && m._id === newFrom;
+          const grouped = !newDay && !isNewFrom && messages[i - 1].author._id === m.author._id;
+          const lastOfGroup = !messages[i + 1] || messages[i + 1].author._id !== m.author._id || !sameDay(m.createdAt, messages[i + 1].createdAt) || messages[i + 1]._id === newFrom;
           return (
             <div key={m._id}>
               {newDay && <div className="chat-day"><span>{dayLabel(m.createdAt)}</span></div>}
+              {isNewFrom && <div className="chat-new" role="separator"><span>Nuovi messaggi</span></div>}
               <div className={`msg${mine ? ' mine' : ''}${grouped ? ' grouped' : ''}`}>
-                {!mine && (grouped ? <span style={{ width: 28 }} /> : <Avatar name={m.author.name} size={28} />)}
+                {!mine && (lastOfGroup ? <Avatar name={m.author.name} size={30} /> : <span className="msg-gap" aria-hidden="true" />)}
                 <div className="bubble">
                   {!mine && !grouped && <strong>{m.author.name}</strong>}
                   <p>{m.text}</p>
@@ -150,14 +166,15 @@ export default function Chat({ project, readOnly }) {
       </div>
 
       {readOnly ? (
-        <p className="chat-readonly">La chat è in sola lettura perché il progetto non è modificabile.</p>
+        <p className="chat-readonly"><Icon name="lock" size={16} /> La chat è in sola lettura perché il progetto non è modificabile.</p>
       ) : (
         <form className="chat-form" onSubmit={send}>
           <label htmlFor="chat-input" className="visually-hidden">Scrivi un messaggio</label>
-          <textarea id="chat-input" rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} placeholder="Scrivi un messaggio… (Invio per inviare)" maxLength={2000} />
-          <button className="btn btn-primary" disabled={!text.trim() || sending} aria-label="Invia messaggio">
+          <textarea id="chat-input" rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} placeholder="Scrivi un messaggio…" maxLength={2000} />
+          <button className={`btn btn-primary chat-send${sending ? ' is-loading' : ''}`} disabled={!text.trim() || sending} aria-label="Invia messaggio">
             <Icon name="send" size={18} />
           </button>
+          <p className="chat-hint meta">Invio per inviare · Maiusc+Invio per andare a capo</p>
         </form>
       )}
     </div>

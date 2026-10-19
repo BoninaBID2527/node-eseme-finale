@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, toQuery } from '../api';
 import { ProjectStatusBadge } from '../components/Badges';
+import Avatar from '../components/Avatar';
 import Field from '../components/Field';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
+import PageHeader from '../components/PageHeader';
 import Pagination from '../components/Pagination';
 import { RowsSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/StateMessage';
@@ -47,7 +49,7 @@ function DismissModal({ report, onClose, onDone }) {
         </Field>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>Annulla</button>
-          <button className="btn btn-primary" disabled={busy}>Archivia</button>
+          <button className={`btn btn-primary${busy ? ' is-loading' : ''}`} disabled={busy}><span>Archivia</span></button>
         </div>
       </form>
     </Modal>
@@ -96,12 +98,13 @@ function ReportsPanel({ onChanged }) {
 
   return (
     <div>
-      <div className="toolbar">
+      <div className="admin-toolbar">
         <div className="segmented" role="group" aria-label="Stato delle segnalazioni">
           {[['open', 'Da esaminare'], ['actioned', 'Gestite'], ['dismissed', 'Archiviate'], ['all', 'Tutte']].map(([value, label]) => (
             <button key={value} aria-pressed={status === value} onClick={() => changeStatus(value)}>{label}</button>
           ))}
         </div>
+        {data && <p className="admin-count" aria-live="polite"><strong className="tabular">{data.total}</strong> {data.total === 1 ? 'segnalazione' : 'segnalazioni'}</p>}
       </div>
 
       {error && <ErrorState message={error} onRetry={reload} />}
@@ -117,9 +120,9 @@ function ReportsPanel({ onChanged }) {
         <>
           <ul className="reports" data-testid="reports" aria-busy={loading}>
             {data.reports.map((r) => (
-              <li key={r._id} className="card report">
+              <li key={r._id} className={`card report report-${r.status}`}>
                 <div className="report-head">
-                  <div className="grow">
+                  <div className="grow report-subject">
                     {r.project ? (
                       <Link to={`/projects/${r.project._id}`} className="report-title">{r.project.title}</Link>
                     ) : (
@@ -132,24 +135,30 @@ function ReportsPanel({ onChanged }) {
                 </div>
                 <blockquote className="report-reason">{r.reason}</blockquote>
                 <p className="muted report-meta">
-                  Segnalato da <strong>{r.reporter?.name}</strong> ({r.reporter?.email}) · {timeAgo(r.createdAt)}
+                  <Avatar name={r.reporter?.name || '?'} size={22} />
+                  <span>
+                    Segnalato da <strong>{r.reporter?.name}</strong> ({r.reporter?.email}) · {timeAgo(r.createdAt)}
+                  </span>
                 </p>
                 {r.status !== 'open' && (
-                  <p className="muted report-meta">
-                    {r.status === 'actioned' ? 'Gestita' : 'Archiviata'} da {r.resolvedBy?.name || 'un amministratore'} il {formatDate(r.resolvedAt)}
-                    {r.adminNote && <> · Nota: “{r.adminNote}”</>}
+                  <p className="muted report-meta report-resolution">
+                    <Icon name="check-circle" size={16} />
+                    <span>
+                      {r.status === 'actioned' ? 'Gestita' : 'Archiviata'} da {r.resolvedBy?.name || 'un amministratore'} il {formatDate(r.resolvedAt)}
+                      {r.adminNote && <> · Nota: “{r.adminNote}”</>}
+                    </span>
                   </p>
                 )}
                 {r.project && (
                   <div className="report-actions">
                     {r.status === 'open' ? (
                       <>
+                        <button className="btn btn-sm" onClick={() => setDismissing(r)}>Archivia senza azioni</button>
                         {r.project.status !== 'hidden' && (
-                          <button className="btn btn-dark btn-sm" onClick={() => hide(r)}>
+                          <button className="btn btn-danger btn-sm report-destructive" onClick={() => hide(r)}>
                             <Icon name="eye-off" size={14} /> Oscura il progetto
                           </button>
                         )}
-                        <button className="btn btn-sm" onClick={() => setDismissing(r)}>Archivia senza azioni</button>
                       </>
                     ) : (
                       <button className="btn btn-sm" onClick={() => reopen(r)}>Riapri</button>
@@ -198,17 +207,18 @@ function ProjectsPanel({ onChanged }) {
 
   return (
     <div>
-      <div className="toolbar">
-        <div className="search toolbar-search">
+      <div className="admin-toolbar">
+        <div className="search admin-search">
           <Icon name="search" size={18} />
           <input type="search" aria-label="Cerca un progetto per titolo" placeholder="Cerca per titolo" value={text} onChange={(e) => setText(e.target.value)} />
         </div>
-        <select aria-label="Filtra per stato" value={status} onChange={(e) => setStatus(e.target.value)} className="toolbar-select">
+        <select aria-label="Filtra per stato" value={status} onChange={(e) => setStatus(e.target.value)} className="admin-select">
           <option value="all">Tutti gli stati</option>
           <option value="active">Attivi</option>
           <option value="archived">Archiviati</option>
           <option value="hidden">Oscurati</option>
         </select>
+        {data && <p className="admin-count" aria-live="polite"><strong className="tabular">{data.total}</strong> {data.total === 1 ? 'progetto' : 'progetti'}</p>}
       </div>
       {error && <ErrorState message={error} onRetry={reload} />}
       {!error && !data && loading && <RowsSkeleton rows={5} />}
@@ -216,20 +226,22 @@ function ProjectsPanel({ onChanged }) {
       {!error && data && data.projects.length > 0 && (
         <>
           <div className="card table-wrap">
-            <table className="table" data-testid="admin-projects">
+            <table className="table admin-table" data-testid="admin-projects">
               <thead>
                 <tr><th>Progetto</th><th>Proprietario</th><th>Stato</th><th>Segnalazioni aperte</th><th>Creato</th><th><span className="visually-hidden">Azioni</span></th></tr>
               </thead>
               <tbody>
                 {data.projects.map((p) => (
                   <tr key={p._id}>
-                    <td><Link to={`/projects/${p._id}`}><strong>{p.title}</strong></Link><br /><small className="muted">{p.category} · {p.visibility === 'public' ? 'Pubblico' : 'Privato'}</small></td>
-                    <td>{p.owner?.name}<br /><small className="muted">{p.owner?.email}</small></td>
-                    <td>{p.status === 'active' ? <span className="pill pill-done">Attivo</span> : <ProjectStatusBadge status={p.status} />}</td>
-                    <td className="tabular">{p.openReports}</td>
-                    <td>{formatDate(p.createdAt)}</td>
-                    <td className="right">
-                      <button className="btn btn-sm" onClick={() => toggleHidden(p)}>
+                    <td data-label="Progetto"><Link to={`/projects/${p._id}`} className="admin-primary">{p.title}</Link><small className="muted">{p.category} · {p.visibility === 'public' ? 'Pubblico' : 'Privato'}</small></td>
+                    <td data-label="Proprietario">
+                      <span className="admin-person"><Avatar name={p.owner?.name || '?'} size={28} /><span><strong>{p.owner?.name}</strong><small className="muted">{p.owner?.email}</small></span></span>
+                    </td>
+                    <td data-label="Stato">{p.status === 'active' ? <span className="pill pill-done">Attivo</span> : <ProjectStatusBadge status={p.status} />}</td>
+                    <td data-label="Segnalazioni aperte" className={`tabular${p.openReports ? ' admin-flag' : ''}`}>{p.openReports}</td>
+                    <td data-label="Creato">{formatDate(p.createdAt)}</td>
+                    <td className="right admin-actions">
+                      <button className={`btn btn-sm${p.status === 'hidden' ? '' : ' btn-danger-ghost'}`} onClick={() => toggleHidden(p)}>
                         {p.status === 'hidden' ? 'Rendi visibile' : 'Oscura'}
                       </button>
                     </td>
@@ -277,16 +289,17 @@ function UsersPanel({ onChanged }) {
 
   return (
     <div>
-      <div className="toolbar">
-        <div className="search toolbar-search">
+      <div className="admin-toolbar">
+        <div className="search admin-search">
           <Icon name="search" size={18} />
           <input type="search" aria-label="Cerca un utente" placeholder="Cerca per nome o email" value={text} onChange={(e) => setText(e.target.value)} />
         </div>
-        <select aria-label="Filtra per stato" value={status} onChange={(e) => setStatus(e.target.value)} className="toolbar-select">
+        <select aria-label="Filtra per stato" value={status} onChange={(e) => setStatus(e.target.value)} className="admin-select">
           <option value="all">Tutti gli utenti</option>
           <option value="active">Attivi</option>
           <option value="blocked">Bloccati</option>
         </select>
+        {data && <p className="admin-count" aria-live="polite"><strong className="tabular">{data.total}</strong> {data.total === 1 ? 'utente' : 'utenti'}</p>}
       </div>
       {error && <ErrorState message={error} onRetry={reload} />}
       {!error && !data && loading && <RowsSkeleton rows={5} />}
@@ -294,20 +307,22 @@ function UsersPanel({ onChanged }) {
       {!error && data && data.users.length > 0 && (
         <>
           <div className="card table-wrap">
-            <table className="table" data-testid="admin-users">
+            <table className="table admin-table" data-testid="admin-users">
               <thead>
                 <tr><th>Utente</th><th>Ruolo</th><th>Stato</th><th>Iscritto</th><th><span className="visually-hidden">Azioni</span></th></tr>
               </thead>
               <tbody>
                 {data.users.map((u) => (
                   <tr key={u._id}>
-                    <td><strong>{u.name}</strong><br /><small className="muted">{u.email}</small></td>
-                    <td>{u.role === 'admin' ? 'Amministratore' : 'Utente'}</td>
-                    <td>{u.blocked ? <span className="badge badge-project-hidden">Bloccato</span> : <span className="pill pill-done">Attivo</span>}</td>
-                    <td>{formatDate(u.createdAt)}</td>
-                    <td className="right">
+                    <td data-label="Utente">
+                      <span className="admin-person"><Avatar name={u.name} size={32} /><span><strong>{u.name}</strong><small className="muted">{u.email}</small></span></span>
+                    </td>
+                    <td data-label="Ruolo">{u.role === 'admin' ? <span className="badge badge-priority-high">Amministratore</span> : 'Utente'}</td>
+                    <td data-label="Stato">{u.blocked ? <span className="badge badge-project-hidden">Bloccato</span> : <span className="pill pill-done">Attivo</span>}</td>
+                    <td data-label="Iscritto">{formatDate(u.createdAt)}</td>
+                    <td className="right admin-actions">
                       {u.role !== 'admin' && (
-                        <button className="btn btn-sm" onClick={() => toggleBlocked(u)}>{u.blocked ? 'Sblocca' : 'Blocca'}</button>
+                        <button className={`btn btn-sm${u.blocked ? '' : ' btn-danger-ghost'}`} onClick={() => toggleBlocked(u)}>{u.blocked ? 'Sblocca' : 'Blocca'}</button>
                       )}
                     </td>
                   </tr>
@@ -341,27 +356,23 @@ export default function Admin() {
   const setTab = (next) => setParams({ tab: next }, { replace: true });
 
   const cards = s && [
-    { label: 'Segnalazioni da esaminare', value: s.openReports, tone: s.openReports ? 'warn' : '' },
-    { label: 'Progetti oscurati', value: s.hiddenProjects },
-    { label: 'Utenti bloccati', value: s.blockedUsers },
-    { label: 'Utenti totali', value: s.users },
+    { label: 'Segnalazioni da esaminare', value: s.openReports, tone: s.openReports ? 'warn' : '', tab: 'reports' },
+    { label: 'Progetti oscurati', value: s.hiddenProjects, tab: 'projects' },
+    { label: 'Utenti bloccati', value: s.blockedUsers, tab: 'users' },
+    { label: 'Utenti totali', value: s.users, tab: 'users' },
   ];
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">Amministrazione</h1>
-          <p className="page-lead">Modera i progetti segnalati e gestisci gli utenti della piattaforma.</p>
-        </div>
-      </header>
+      <PageHeader eyebrow="Gestione" title="Amministrazione" lead="Modera i progetti segnalati e gestisci gli utenti della piattaforma." />
 
       {stats.error && <ErrorState message={stats.error} onRetry={stats.reload} />}
+      {!s && !stats.error && <div className="card admin-stats" aria-hidden="true">{[0, 1, 2, 3].map((i) => <div key={i} className="admin-stat"><span className="skeleton" style={{ width: 48, height: 36, borderRadius: 8 }} /><span className="skeleton" style={{ width: '70%', height: 14, borderRadius: 6 }} /></div>)}</div>}
       {s && (
-        <div className="stats">
+        <div className="card admin-stats" role="group" aria-label="Riepilogo della piattaforma">
           {cards.map((c) => (
-            <div key={c.label} className={`card stat${c.tone ? ` stat-${c.tone}` : ''}`}>
-              <strong className="stat-value">{c.value}</strong>
+            <div key={c.label} className={`admin-stat${c.tone ? ` is-${c.tone}` : ''}`}>
+              <strong className="admin-stat-value">{c.value}</strong>
               <span>{c.label}</span>
             </div>
           ))}

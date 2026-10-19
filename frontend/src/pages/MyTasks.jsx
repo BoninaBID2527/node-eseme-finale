@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, toQuery } from '../api';
 import { DueLabel, PriorityBadge, StatusPill } from '../components/Badges';
 import Icon from '../components/Icon';
+import PageHeader from '../components/PageHeader';
 import Pagination from '../components/Pagination';
 import { RowsSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/StateMessage';
@@ -77,12 +78,7 @@ export default function MyTasks() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">I miei task</h1>
-          <p className="page-lead">Tutti i task assegnati a te, in ordine di scadenza, su ogni progetto.</p>
-        </div>
-      </header>
+      <PageHeader eyebrow="Lavoro" title="I miei task" lead="Tutti i task assegnati a te, in ordine di scadenza, su ogni progetto." />
 
       <div className="toolbar">
         <div className="segmented" role="group" aria-label="Filtra per stato">
@@ -127,17 +123,19 @@ export default function MyTasks() {
 
       {!error && data && data.tasks.length > 0 && (
         <div aria-busy={loading} style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 150ms' }}>
-          <p className="muted results-count" aria-live="polite" role="status">
+          <p className="results-count" aria-live="polite" role="status">
             <strong className="tabular">{data.total}</strong> task
+            {active > 0 && ' con i filtri scelti'}
           </p>
           {groups.map((group) => (
             <section key={group.key} className="task-group" aria-labelledby={`g-${group.key}`}>
               <h2 id={`g-${group.key}`} className={`task-group-title ${group.key === 'overdue' ? 'is-overdue' : ''}`}>
+                {group.key === 'overdue' && <Icon name="alert" size={18} />}
                 {group.title} <span className="tab-count">{group.tasks.length}</span>
               </h2>
-              <ul className="card list" data-testid={`tasks-${group.key}`}>
+              <ul className="card list stagger" data-testid={`tasks-${group.key}`}>
                 {group.tasks.map((task) => (
-                  <li key={task._id} className="list-row task-row">
+                  <li key={task._id} className="list-row task-row" data-priority={task.priority}>
                     <button
                       className={`check${task.status === 'done' ? ' is-done' : ''}`}
                       onClick={() => toggleDone(task)}
@@ -149,11 +147,16 @@ export default function MyTasks() {
                     </button>
                     <Link to={`/projects/${task.project._id}?tab=board&task=${task._id}`} className="task-row-main">
                       <strong className={task.status === 'done' ? 'is-done' : ''}>{task.title}</strong>
-                      <small className="muted">{task.project.title}{task.labels?.length > 0 && ` · ${task.labels.map((l) => `#${l}`).join(' ')}`}</small>
+                      <small className="muted task-row-sub">
+                        <Icon name="folder" size={13} /> {task.project.title}
+                        {task.labels?.length > 0 && <span> · {task.labels.map((l) => `#${l}`).join(' ')}</span>}
+                      </small>
                     </Link>
-                    <PriorityBadge value={task.priority} />
-                    <StatusPill value={task.status} />
-                    <DueLabel task={task} />
+                    <div className="task-row-meta">
+                      <DueLabel task={task} />
+                      <PriorityBadge value={task.priority} />
+                      <StatusPill value={task.status} />
+                    </div>
                   </li>
                 ))}
               </ul>

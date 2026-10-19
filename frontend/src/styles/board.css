@@ -1,0 +1,147 @@
+/* Bacheca, schede dei task, pannello di dettaglio, commenti ed etichette.
+   Priorità = striscia a sinistra + etichetta · scadenza = chip colorato · stato = colonna (e pallino) · assegnatario = avatar. */
+
+/* ---------- Barra degli strumenti ---------- */
+.board-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: var(--s-5); }
+.board-toolbar-icon { color: var(--text-3); margin-right: -2px; }
+.board-toolbar select { width: auto; min-width: 150px; min-height: 38px; padding-top: 6px; padding-bottom: 6px; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600; }
+.board-search { flex: 1; min-width: 200px; max-width: 300px; }
+.board-search input { min-height: 38px; border-radius: 999px; font-size: var(--fs-sm); }
+.board-add { margin-left: auto; }
+.results-count { margin: -6px 0 var(--s-3); font-size: var(--fs-sm); }
+.board-hint { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-4) var(--s-5); margin-bottom: var(--s-4); border-radius: var(--radius-lg); background: var(--yellow-soft); border: 1px solid var(--yellow-line); border-left: 4px solid var(--yellow); font-weight: 600; }
+.board-hint p { flex: 1; }
+
+/* ---------- Colonne ---------- */
+.board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); align-items: start; }
+.column {
+  position: relative;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-3);
+  border: 1px solid transparent;
+  min-height: 180px;
+  transition: background var(--t), border-color var(--t), box-shadow var(--t);
+}
+/* Durante il trascinamento tutte le colonne mostrano dove si può rilasciare; quella sotto il cursore si evidenzia. */
+.board.is-dragging .column { border: 1px dashed var(--line-strong); background: #f3f3f1; }
+.board.is-dragging .column.is-over { background: var(--yellow-soft); border: 2px solid var(--ink); box-shadow: var(--shadow); }
+.column-head { display: flex; align-items: center; gap: 8px; padding: 4px 4px 10px; }
+.column-head h3 { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 650; text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text); }
+.column-add { width: 30px; height: 30px; color: var(--text-2); }
+.column-add:hover:not(:disabled) { background: var(--ink); color: var(--yellow); }
+.count { min-width: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 650; line-height: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.status-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--text-3); }
+.status-dot-in_progress { background: var(--yellow); box-shadow: 0 0 0 1px var(--ink); }
+.status-dot-done { background: var(--success); box-shadow: none; }
+
+.column-body { display: flex; flex-direction: column; gap: 10px; }
+.column-empty { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--s-6) var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--radius); text-align: center; color: var(--text-3); }
+.column-empty p { font-size: var(--fs-sm); font-weight: 650; color: var(--text-2); }
+.column-empty small { font-size: var(--fs-xs); }
+.column-drop { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 10px; margin-top: 10px; border: 2px dashed var(--ink); border-radius: var(--radius); background: var(--yellow); text-align: center; font-weight: 700; font-size: var(--fs-sm); animation: pop-in var(--t-fast) both; }
+.add-task { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 9px 10px; border: 0; border-radius: var(--radius); background: none; color: var(--text-2); font-weight: 650; font-size: var(--fs-sm); cursor: pointer; transition: background var(--t-fast), color var(--t-fast); }
+.add-task:hover { background: rgba(16, 16, 16, 0.07); color: var(--ink); }
+
+/* ---------- Scheda del task ---------- */
+.task {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  overflow: hidden;
+  transition: transform var(--t-fast), box-shadow var(--t-fast), border-color var(--t-fast), opacity var(--t-fast);
+}
+/* Striscia della priorità: nero = alta, giallo = media, grigio = bassa. Si legge anche l'etichetta, non solo il colore. */
+.task::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line-strong); }
+.task-p-high::before { background: var(--ink); }
+.task-p-medium::before { background: var(--yellow); }
+.task:hover { transform: translateY(-1px); border-color: var(--line-strong); box-shadow: var(--shadow); }
+.task:active { cursor: grabbing; }
+.task.is-dragging { opacity: 0.45; transform: rotate(1.2deg) scale(0.97); box-shadow: none; border-style: dashed; border-color: var(--ink); }
+.task.is-done { background: var(--surface-2); }
+.task.is-done::before { background: var(--success); }
+.task.is-done .task-title { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* Salvataggio in corso (spostamento, assegnazione): barra gialla che scorre lungo il bordo inferiore. */
+.task.is-saving { border-color: var(--ink); }
+.task.is-saving::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--line) 25%, var(--yellow) 50%, var(--line) 75%); background-size: 200% 100%; animation: shimmer 0.9s linear infinite; }
+
+.task-main { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex: 1; min-width: 0; padding: 12px 12px 12px 18px; border: 0; border-radius: var(--radius); background: none; text-align: left; cursor: inherit; }
+.task-top { display: flex; align-items: center; gap: 6px; min-height: 22px; padding-right: 34px; }
+.task-top .badge { padding: 1px 8px; font-size: var(--fs-2xs); letter-spacing: 0.02em; }
+.task-done-icon { color: var(--success); }
+.task-title { font-family: var(--font-body); font-size: var(--fs-base); font-weight: 650; line-height: var(--lh-snug); overflow-wrap: anywhere; }
+.task-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.task-unassigned { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px dashed var(--line-strong); color: var(--text-3); }
+.task .dropdown { position: absolute; top: 6px; right: 6px; }
+.task-menu { flex: none; width: 32px; height: 32px; color: var(--text-3); }
+.task-menu:hover:not(:disabled) { color: var(--ink); }
+.task-created { font-size: var(--fs-xs); }
+.task-skeleton { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 14px 14px 18px; cursor: default; }
+.task-skeleton:hover { transform: none; box-shadow: var(--shadow-sm); }
+
+.due-chip { padding: 2px 8px; border-radius: 999px; background: var(--surface-3); }
+.due-chip.overdue { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-line); }
+.due-chip.soon { background: var(--yellow-soft); box-shadow: inset 0 0 0 1px var(--yellow-line); }
+
+/* ---------- Etichette ---------- */
+.label-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.label { display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-2xs); font-weight: 650; line-height: 19px; }
+.label::before { content: '#'; margin-right: 1px; color: var(--text-3); }
+.label-more::before { content: none; }
+.task-comments { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 650; color: var(--text-2); }
+
+/* ---------- Pannello del task (drawer) ---------- */
+.task-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: var(--s-5); padding-bottom: var(--s-4); border-bottom: 1px solid var(--line); }
+.task-form fieldset { gap: var(--s-4); }
+.task-title-input { min-height: 48px; font-family: var(--font-display); font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+.task-props { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3) var(--s-4); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-2); }
+.task-danger { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-3) var(--s-4); margin-top: var(--s-8); padding: var(--s-4); border: 1px dashed var(--danger-line); border-radius: var(--radius-lg); }
+.task-danger h3 { font-size: var(--fs-base); color: var(--danger); }
+.drawer-actions { position: sticky; bottom: 0; z-index: 2; margin: var(--s-6) calc(var(--s-6) * -1) calc(var(--s-6) * -1); padding: var(--s-3) var(--s-6); background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -8px 16px -12px rgba(16, 16, 16, 0.25); }
+
+/* ---------- Commenti ---------- */
+.comments { display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-8); padding-top: var(--s-5); border-top: 1px solid var(--line); }
+.comments h3 { display: flex; align-items: center; gap: 8px; }
+.comments-loading { align-self: center; }
+.comments-empty { display: flex; align-items: center; gap: 10px; padding: var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--text-2); font-size: var(--fs-sm); }
+.comment-list { display: flex; flex-direction: column; gap: var(--s-4); }
+.comment { display: flex; gap: 10px; animation: rise var(--t-slow) both; }
+.comment-body { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg); background: var(--surface-2); border: 1px solid var(--line); }
+.comment-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); min-height: 24px; }
+.comment-head time { font-size: var(--fs-xs); }
+.comment-delete { margin-left: auto; width: 28px; height: 28px; }
+.comment-body p { overflow-wrap: anywhere; white-space: pre-wrap; font-size: var(--fs-base); }
+.comment-form { display: flex; gap: 10px; align-items: flex-start; }
+.comment-composer { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.comment-composer-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+
+/* ---------- Tablet e smartphone ---------- */
+@media (max-width: 900px) {
+  .board-add { margin-left: 0; }
+  .board-toolbar select, .board-search { flex: 1 1 140px; max-width: none; }
+  /* Su smartphone le colonne scorrono in orizzontale (con "aggancio"), così ogni colonna resta ampia e leggibile. */
+  .board { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scroll-padding-left: 16px; }
+  .column { scroll-snap-align: start; }
+  .task { cursor: default; }
+  .task:hover { transform: none; }
+  .task-menu { width: 40px; height: 40px; }
+  .task .dropdown { top: 2px; right: 2px; }
+  .task-top { padding-right: 42px; }
+  .column-add { width: 40px; height: 40px; }
+}
+@media (max-width: 520px) {
+  .task-props { grid-template-columns: 1fr; }
+  .drawer-actions { margin-left: calc(var(--s-4) * -1); margin-right: calc(var(--s-4) * -1); padding-left: var(--s-4); padding-right: var(--s-4); }
+  .modal-drawer .modal-body { padding: var(--s-4); }
+  .modal-drawer .modal-head { padding: var(--s-4); }
+}
+
+/* Il pannello laterale gestisce da sé i margini interni (testata e barra azioni fisse): niente padding sul contenitore. */
+.modal.modal-drawer { padding: 0; }

@@ -6,15 +6,15 @@ import { useToast } from '../context/ToastContext';
 import { errorMessage } from '../utils';
 import Icon from './Icon';
 
-// Inviti ricevuti: l'utente entra nel progetto solo se accetta.
+// Inviti ricevuti: l'utente entra nel progetto solo se accetta. Durante la risposta i pulsanti mostrano il caricamento.
 export default function InvitationList({ invitations, onChanged }) {
   const toast = useToast();
   const navigate = useNavigate();
   const { refreshUnread } = useRealtime();
-  const [busyId, setBusyId] = useState(null);
+  const [busy, setBusy] = useState(null); // { id, action }
 
   const respond = async (invitation, action) => {
-    setBusyId(invitation._id);
+    setBusy({ id: invitation._id, action });
     try {
       const data = await api.post(`/invitations/${invitation._id}/${action}`);
       refreshUnread();
@@ -29,33 +29,36 @@ export default function InvitationList({ invitations, onChanged }) {
       toast(errorMessage(err), 'error');
       onChanged(); // l'invito potrebbe essere stato annullato nel frattempo
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   };
 
   return (
-    <ul className="invitations">
-      {invitations.map((inv) => (
-        <li key={inv._id} className="invitation">
-          <span className="invitation-icon">
-            <Icon name="user-plus" size={20} />
-          </span>
-          <div className="grow">
-            <p>
-              <strong>{inv.inviter?.name}</strong> ti ha invitato in <strong>{inv.project.title}</strong>
-            </p>
-            {inv.project.description && <small className="muted clamp-2">{inv.project.description}</small>}
-          </div>
-          <div className="invitation-actions">
-            <button className="btn btn-primary btn-sm" onClick={() => respond(inv, 'accept')} disabled={busyId === inv._id}>
-              Accetta
-            </button>
-            <button className="btn btn-sm" onClick={() => respond(inv, 'decline')} disabled={busyId === inv._id}>
-              Rifiuta
-            </button>
-          </div>
-        </li>
-      ))}
+    <ul className="invitations stagger">
+      {invitations.map((inv) => {
+        const mine = busy?.id === inv._id;
+        return (
+          <li key={inv._id} className="invitation">
+            <span className="invitation-icon">
+              <Icon name="user-plus" size={20} />
+            </span>
+            <div className="grow">
+              <p>
+                <strong>{inv.inviter?.name}</strong> ti ha invitato in <strong>{inv.project.title}</strong>
+              </p>
+              {inv.project.description && <small className="muted clamp-2">{inv.project.description}</small>}
+            </div>
+            <div className="invitation-actions">
+              <button className={`btn btn-primary btn-sm${mine && busy.action === 'accept' ? ' is-loading' : ''}`} onClick={() => respond(inv, 'accept')} disabled={mine}>
+                Accetta
+              </button>
+              <button className={`btn btn-sm${mine && busy.action === 'decline' ? ' is-loading' : ''}`} onClick={() => respond(inv, 'decline')} disabled={mine}>
+                Rifiuta
+              </button>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

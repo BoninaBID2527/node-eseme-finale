@@ -28,6 +28,9 @@ export default function Pagination({ page, pages, onChange }) {
       <button className="btn btn-sm" disabled={page >= pages} onClick={() => onChange(page + 1)} aria-label="Pagina successiva">
         <Icon name="chevron-right" size={16} />
       </button>
+      <span className="pagination-info" aria-hidden="true">
+        Pagina {page} di {pages}
+      </span>
     </nav>
   );
 }

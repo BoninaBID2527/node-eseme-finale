@@ -58,7 +58,7 @@ export default function SettingsTab({ project, onUpdated }) {
   return (
     <div className="settings-layout">
       <section className="card panel" aria-labelledby="set-edit">
-        <h2 id="set-edit">Informazioni del progetto</h2>
+        <h2 id="set-edit">Modifica il progetto</h2>
         {(archived || hidden) && (
           <p className="form-notice">
             {archived ? 'Il progetto è archiviato: riattivalo per modificarne le informazioni.' : 'Il progetto è stato oscurato da un amministratore e non è modificabile.'}
@@ -68,7 +68,7 @@ export default function SettingsTab({ project, onUpdated }) {
       </section>
 
       <section className="card panel danger-zone" aria-labelledby="set-danger">
-        <h2 id="set-danger">Archiviazione e cancellazione</h2>
+        <h2 id="set-danger">Stato e cancellazione</h2>
         <div className="danger-row">
           <div>
             <strong>{archived ? 'Riattiva il progetto' : 'Archivia il progetto'}</strong>
@@ -80,10 +80,10 @@ export default function SettingsTab({ project, onUpdated }) {
             <Icon name="archive" size={16} /> {archived ? 'Riattiva' : 'Archivia'}
           </button>
         </div>
-        <div className="danger-row">
+        <div className="danger-row is-destructive">
           <div>
-            <strong>Elimina il progetto</strong>
-            <p className="muted">Cancella per sempre il progetto e tutti i suoi contenuti.</p>
+            <strong><Icon name="alert" size={16} /> Elimina il progetto</strong>
+            <p>Cancella per sempre il progetto e tutti i suoi contenuti. L'azione non si può annullare.</p>
           </div>
           <button className="btn btn-danger" onClick={remove}>
             <Icon name="trash" size={16} /> Elimina

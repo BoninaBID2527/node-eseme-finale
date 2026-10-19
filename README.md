@@ -1,6 +1,10 @@
-# TaskFlow
+# BONHUB
+
+> BONHUB è l'applicazione sviluppata per la consegna TaskFlow.
 
 Piattaforma collaborativa di gestione progetti: **bacheca a colonne** (Da fare · In corso · Completato), **chat** e **notifiche in tempo reale**, **catalogo pubblico** filtrabile e **pannello di moderazione** per gli amministratori. Progetto d'esame finale di Node.js.
+
+**Identificativi tecnici invariati.** Il nome del marchio è cambiato, ma database (`taskflow`, `taskflow_test`), chiave di sessione nel browser (`taskflow_token`), nome del container Docker e dominio degli account dimostrativi (`@taskflow.test`) restano quelli originali, così i dati e le sessioni esistenti continuano a funzionare.
 
 ![Catalogo dei progetti](docs/img/catalogo.png)
 
@@ -127,8 +131,10 @@ frontend/
     components/         Layout, Board, Chat, TaskModal, MembersTab, Modal, DropdownMenu, ...
     pages/              Catalog, Dashboard, MyProjects, MyTasks, Notifications, Profile,
                         ProjectPage, NewProject, Admin, accesso/registrazione
-    styles/             tokens.css (palette, font, movimento) + base/ui/layout/pages
-  public/               favicon.svg, logo-mark.svg, logo-mono.svg
+    styles/             tokens.css (palette, font, spaziature, raggi, ombre, movimento), base.css (gerarchia
+                        tipografica), ui.css (componenti condivisi), layout.css (barra laterale, tablet, mobile)
+                        + un file per area: auth, catalog, work, forms, project, board, admin
+  public/brand/         logo BONHUB (PNG trasparenti: scritta nera, scritta bianca, sola icona) e icone
 postman/                collection + environment
 e2e/                    test end-to-end (Playwright + axe-core)
 docs/                   guida all'esame e immagini
@@ -273,7 +279,7 @@ Tutte le rotte sono sotto `/api`. Gli errori hanno sempre la forma `{ "message":
 
 ### Collection Postman
 
-In `postman/` ci sono la collection **TaskFlow API** (111 richieste in 10 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **TaskFlow – locale**.
+In `postman/` ci sono la collection **BONHUB API** (111 richieste in 10 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **BONHUB – locale**.
 
 1. Importa i due file in Postman e seleziona l'environment.
 2. Avvia MongoDB e il backend ed esegui `npm run seed` (serve per l'admin).
@@ -291,11 +297,15 @@ React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libre
 
 **Palette** (`frontend/src/styles/tokens.css`): carbone `#101010`, giallo `#FFD600`, bianco `#FFFFFF` e grigi neutri. Il giallo è riservato ad azioni principali, selezioni, focus e dettagli del marchio; sui pulsanti gialli il testo è sempre nero. Colori semantici (errore, successo) sobri e con contrasto adeguato.
 
-**Tipografia:** *Space Grotesk* per titoli, numeri e identità; *Manrope* per testi e controlli. Sono servite dal progetto stesso (pacchetti `@fontsource-variable/*`): nessuna richiesta a CDN esterne, caricamento per sottoinsieme di caratteri e fallback di sistema.
+**Tipografia:** *Sora* (titoli, numeri, etichette: geometrica, con aperture ampie e un tratto tecnico sobrio, in sintonia con la scritta del logo) + *Inter* (testi, form, task, chat: la più leggibile alle dimensioni piccole, con numeri tabulari). Pesi usati: Sora 600–800, Inter 400–700 (font variabili). Sono servite dal progetto stesso (pacchetti `@fontsource-variable/*`): nessuna richiesta a CDN esterne, caricamento per sottoinsieme di caratteri (latin e latin-ext, quindi accenti italiani) e fallback di sistema. Scala tipografica, interlinee e spaziature lettere sono token in `tokens.css`.
 
-**Logo** (`frontend/src/components/Logo.jsx`, `public/*.svg`): tre barre sfalsate, come i passi di un flusso di lavoro che avanza (da fare → in corso → completato). Funziona su tassello giallo, in monocromia (`logo-mono.svg`) e a 16 px come favicon. Disegnato per questo progetto.
+*Come è stata scelta:* sono state confrontate a schermo quattro coppie su uno specimen con testo italiano, accenti, numeri e piccoli componenti (Sora + Inter, Unbounded + Figtree, Outfit + Plus Jakarta Sans e la coppia precedente Space Grotesk + Manrope). Unbounded è molto distintiva ma troppo larga per titoli lunghi; Outfit è vicina alla scritta del logo ma ho preferito la maggiore sobrietà di Sora; la coppia precedente risultava più generica. Licenze verificate sui metadati dei pacchetti npm (tutte SIL OFL 1.1). Le pagine dei cataloghi (Google Fonts) non erano raggiungibili dall'ambiente di sviluppo: la valutazione si basa sullo specimen e sui metadati dei pacchetti.
 
-**Copertine di fallback** (`ProjectCover.jsx`): se il progetto non ha un'immagine, viene generata una "timeline" a barre (come un diagramma di Gantt) il cui disegno e tema derivano dall'id del progetto: sempre la stessa per lo stesso progetto, ma diversa tra progetti.
+**Logo** (`frontend/src/components/Logo.jsx`, `frontend/public/brand/`): il marchio approvato (quadrato giallo con barre nere e freccia verso l'alto a destra) è usato così com'è, senza ridisegnarlo, in tre varianti PNG trasparenti: logo completo con scritta nera (superfici chiare), con scritta bianca (superfici scure) e sola icona (favicon e navigazione compatta). Il componente `<Logo variant tone height decorative />` gestisce varianti, dimensioni e accessibilità.
+
+**Responsive:** barra laterale estesa su desktop, compatta a sole icone su tablet, barra superiore + menu a scomparsa + barra di navigazione inferiore su smartphone; il pannello di un task è un cassetto laterale (a tutto schermo su smartphone).
+
+**Copertine di fallback** (`ProjectCover.jsx`): se il progetto non ha un'immagine, viene generata una composizione ispirata al marchio (barre arrotondate a gradini che salgono verso l'alto a destra, con una freccia sulla barra evidenziata) il cui tema (cinque varianti nella palette) e disegno derivano dall'id del progetto: sempre la stessa per lo stesso progetto, nessuna immagine da scaricare. Esiste una versione larga per la testata della pagina progetto.
 
 **Interazioni:** transizioni di 150–200 ms, skeleton durante i caricamenti, toast (gli errori anche accanto ai campi), stati vuoti con un'azione utile. Tutto rispetta `prefers-reduced-motion`.
 
@@ -310,7 +320,7 @@ React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libre
 | Cosa | Comando | Esito dell'ultima esecuzione |
 | --- | --- | --- |
 | Backend: test di integrazione (autenticazione, permessi, filtri, task, chat, inviti, admin, upload, Socket.IO) | `cd backend && npm test` | 78 test, 7 suite, tutti superati |
-| API: collection Postman con Newman | `npx newman run postman/TaskFlow.postman_collection.json -e postman/TaskFlow.postman_environment.json` | 111 richieste, 170 verifiche, 0 fallite |
+| API: collection Postman con Newman | `npx newman run postman/BONHUB.postman_collection.json -e postman/BONHUB.postman_environment.json` | 111 richieste, 170 verifiche, 0 fallite |
 | Frontend: build di produzione | `cd frontend && npm run build` | ok |
 | Browser: due utenti in parallelo, mobile, accessibilità | `cd e2e && npm test` | 37 scenari su 37 superati, nessun errore in console |
 
@@ -344,6 +354,6 @@ I test del backend e quelli end-to-end richiedono MongoDB acceso; gli end-to-end
 
 ## Licenze
 
-- Font *Space Grotesk* e *Manrope*: SIL Open Font License 1.1 (pacchetti `@fontsource-variable/*`, che includono le licenze originali).
+- Font *Sora* e *Inter*: SIL Open Font License 1.1 (pacchetti `@fontsource-variable/*`, che includono le licenze originali).
 - Il logo e le icone sono stati disegnati per questo progetto; non derivano da loghi o set di icone di terzi.
 - Le altre dipendenze sono elencate nei file `package.json` di ogni cartella, ciascuna con la propria licenza.

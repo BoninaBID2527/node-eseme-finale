@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { dueInfo, formatDate } from '../utils';
 import ActivityFeed from './ActivityFeed';
 import Avatar from './Avatar';
-import { DueLabel, PriorityBadge, ProgressBar } from './Badges';
+import { DueLabel, PriorityBadge } from './Badges';
 import Icon from './Icon';
 
 // Panoramica: descrizione, avanzamento e prossime scadenze (calcolati dai task reali, aggiornati in tempo reale).
@@ -13,6 +13,7 @@ export default function OverviewTab({ project, isMember, tasks, onOpenTab }) {
     if (t.status !== 'done' && dueInfo(t).days !== null && dueInfo(t).days < 0) counts.overdue += 1;
   });
   const total = tasks?.length ?? 0;
+  const percent = total ? Math.round((counts.done / total) * 100) : 0;
   const upcoming = (tasks || [])
     .filter((t) => t.status !== 'done' && t.dueDate)
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
@@ -35,14 +36,24 @@ export default function OverviewTab({ project, isMember, tasks, onOpenTab }) {
 
         {isMember ? (
           <section className="card panel" aria-labelledby="ov-progress">
-            <h2 id="ov-progress">Avanzamento</h2>
+            <div className="panel-title-row">
+              <h2 id="ov-progress">Avanzamento</h2>
+              {total > 0 && <span className="progress-figure tabular">{percent}%</span>}
+            </div>
+            {total > 0 && (
+              <div className="stack-bar" role="img" aria-label={`${counts.done} completati, ${counts.in_progress} in corso, ${counts.todo} da fare su ${total} task`}>
+                <span className="is-done" style={{ flexGrow: counts.done }} />
+                <span className="is-progress" style={{ flexGrow: counts.in_progress }} />
+                <span className="is-todo" style={{ flexGrow: counts.todo }} />
+              </div>
+            )}
             <div className="mini-stats">
               <div><strong className="tabular">{counts.todo}</strong><span>Da fare</span></div>
               <div><strong className="tabular">{counts.in_progress}</strong><span>In corso</span></div>
               <div><strong className="tabular">{counts.done}</strong><span>Completati</span></div>
               <div className={counts.overdue ? 'is-danger' : ''}><strong className="tabular">{counts.overdue}</strong><span>Scaduti</span></div>
             </div>
-            <ProgressBar done={counts.done} total={total} />
+            <div className="panel-divider" />
             <h3 className="panel-subtitle">Prossime scadenze</h3>
             {upcoming.length === 0 ? (
               <p className="muted">Nessun task aperto con una scadenza.</p>
@@ -59,12 +70,15 @@ export default function OverviewTab({ project, isMember, tasks, onOpenTab }) {
                 ))}
               </ul>
             )}
-            <button className="btn" onClick={() => onOpenTab('board')}>
-              <Icon name="board" size={16} /> Apri la bacheca
-            </button>
+            <div>
+              <button className="btn btn-dark" onClick={() => onOpenTab('board')}>
+                <Icon name="board" size={16} /> Apri la bacheca
+              </button>
+            </div>
           </section>
         ) : (
-          <section className="card panel" aria-labelledby="ov-join">
+          <section className="card panel join-panel" aria-labelledby="ov-join">
+            <span className="state-icon"><Icon name="user-plus" size={24} /></span>
             <h2 id="ov-join">Vuoi partecipare?</h2>
             <p className="muted">
               Bacheca e chat sono riservate ai membri. Chiedi a <strong>{project.owner.name}</strong> di invitarti usando l'email del tuo account: riceverai una notifica e potrai accettare.

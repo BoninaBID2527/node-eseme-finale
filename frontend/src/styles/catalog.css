@@ -1,0 +1,89 @@
+/* Catalogo: ricerca e filtri, risultati, griglia e card dei progetti. */
+
+/* ---------- Ricerca e filtri ---------- */
+.catalog-filters { display: flex; flex-direction: column; gap: var(--s-4); margin-bottom: var(--s-5); }
+.catalog-search { max-width: 720px; }
+.catalog-pills { display: flex; flex-direction: column; gap: 8px; }
+.catalog-pills .pills { margin: 0 -2px; }
+.catalog-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3) var(--s-4); }
+.field.field-inline, .field-inline { flex-direction: row; display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.field-inline label { flex: none; font-size: var(--fs-sm); font-weight: 650; color: var(--text-2); }
+.field-inline select { width: auto; min-width: 150px; min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
+.catalog-more { gap: 8px; }
+.catalog-more-count { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--yellow); color: var(--ink); font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; line-height: 18px; text-align: center; }
+.catalog-chevron { transition: transform var(--t); }
+.catalog-chevron.is-open { transform: rotate(180deg); }
+.catalog-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: var(--s-4); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); animation: rise var(--t) both; }
+
+.catalog-active { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--s-3); }
+
+.results-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-3); min-height: 40px; margin: var(--s-4) 0 var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--line); }
+.results-bar p { font-size: var(--fs-base); color: var(--text-2); }
+.results-bar strong { font-size: var(--fs-lg); color: var(--text); margin-right: 2px; }
+.results-tools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); }
+
+/* ---------- Griglia: 1 colonna su smartphone, 2 su tablet, 3 su desktop (la prima card occupa due celle) ---------- */
+.catalog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-6); }
+@media (min-width: 1284px) {
+  .catalog-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .catalog-grid > .is-featured { grid-column: span 2; }
+}
+@media (max-width: 700px) {
+  .catalog-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+}
+
+/* ---------- Card progetto ---------- */
+.project-card { position: relative; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: transform var(--t), box-shadow var(--t), border-color var(--t); }
+.project-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--ink); }
+.project-card:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: var(--ring); }
+.project-card-media { position: relative; }
+.cover { position: relative; height: 148px; overflow: hidden; background: var(--ink); }
+.cover img, .cover-art { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--t-slow); }
+.project-card:hover .cover img, .project-card:hover .cover-art { transform: scale(1.04); }
+.cover-badges { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.cover-tag { padding: 3px 10px; border-radius: 999px; background: var(--white); color: var(--ink); font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; box-shadow: 0 1px 4px rgba(16, 16, 16, 0.25); }
+.project-card-body { display: flex; flex-direction: column; flex: 1; gap: 10px; padding: var(--s-4) var(--s-5) var(--s-4); }
+.project-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.project-card h3 { font-size: var(--fs-md); line-height: 1.25; }
+.project-card p { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.project-card .chip { background: transparent; border: 1px solid var(--line-strong); font-size: var(--fs-2xs); padding: 1px 8px; }
+.stretched-link { text-decoration: none; }
+.stretched-link:hover { text-decoration: underline; text-decoration-color: var(--yellow); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.stretched-link:focus-visible { outline: none; box-shadow: none; }
+.stretched-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.project-card-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: var(--s-3); border-top: 1px solid var(--line); font-size: var(--fs-xs); font-weight: 600; }
+.project-card-body > .chips + .project-card-foot, .project-card-body > .progress + .project-card-foot { margin-top: auto; }
+.project-card-foot time { margin-left: auto; white-space: nowrap; font-weight: 500; }
+
+/* Card in evidenza: copertina a fianco del testo, titolo più grande. */
+@media (min-width: 1284px) {
+  .project-card.is-featured { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .is-featured .project-card-media { min-height: 100%; }
+  .is-featured .cover { height: 100%; min-height: 300px; }
+  .is-featured .project-card-body { justify-content: center; gap: var(--s-3); padding: var(--s-8) var(--s-6) var(--s-5); }
+  .is-featured h3 { font-size: var(--fs-xl); line-height: 1.15; letter-spacing: -0.03em; }
+  .is-featured p { font-size: var(--fs-base); }
+  .is-featured .project-card-foot { margin-top: var(--s-4); }
+}
+
+.skeleton-card .skeleton-cover { display: block; }
+
+/* ---------- Paginazione ---------- */
+.pagination-info { margin-left: var(--s-3); font-size: var(--fs-xs); font-weight: 600; color: var(--text-3); }
+
+@media (max-width: 900px) {
+  .field-inline select { min-width: 130px; }
+  .catalog-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .results-bar { align-items: flex-start; }
+  .results-tools { width: 100%; justify-content: space-between; }
+  .catalog-row { width: 100%; }
+  .catalog-row .field-inline { flex: 1 1 100%; }
+  .catalog-row .field-inline select { flex: 1; }
+  .catalog-dates { grid-template-columns: 1fr; }
+  .pagination-info { display: none; }
+}
+
+/* Bordo sottile: le copertine chiare non si confondono con la card. */
+.cover::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 -1px 0 var(--line); pointer-events: none; }

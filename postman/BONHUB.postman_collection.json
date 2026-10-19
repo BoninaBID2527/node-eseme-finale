@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "TaskFlow API",
-    "description": "Collection di test per TaskFlow: tutte le funzionalità REST, con test automatici sui codici HTTP.\n\n1. Avvia MongoDB e il backend (`npm run dev` in backend/).\n2. Esegui `npm run seed` per creare l'amministratore (admin@taskflow.test / admin1234).\n3. Importa anche l'environment \"TaskFlow – locale\" e selezionalo.\n4. Lancia la collection **in ordine** con il Runner: token e id vengono salvati nelle variabili da soli.\n\nLe richieste che iniziano con ⚠ verificano i casi di errore (401, 403, 404, 409...).",
+    "name": "BONHUB API",
+    "description": "Collection di test per BONHUB: tutte le funzionalità REST, con test automatici sui codici HTTP.\n\n1. Avvia MongoDB e il backend (`npm run dev` in backend/).\n2. Esegui `npm run seed` per creare l'amministratore (admin@taskflow.test / admin1234).\n3. Importa anche l'environment \"BONHUB – locale\" e selezionalo.\n4. Lancia la collection **in ordine** con il Runner: token e id vengono salvati nelle variabili da soli.\n\nLe richieste che iniziano con ⚠ verificano i casi di errore (401, 403, 404, 409...).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

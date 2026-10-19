@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { dueInfo, formatDate } from '../utils';
+import ActivityFeed from './ActivityFeed';
 import Avatar from './Avatar';
 import { DueLabel, PriorityBadge, ProgressBar } from './Badges';
 import Icon from './Icon';
@@ -88,6 +89,12 @@ export default function OverviewTab({ project, isMember, tasks, onOpenTab }) {
             <dd>{project.members.length + 1}</dd>
           </dl>
         </section>
+        {isMember && (
+          <section className="card panel" aria-labelledby="ov-activity">
+            <h2 id="ov-activity">Attività recente</h2>
+            <ActivityFeed projectId={project._id} />
+          </section>
+        )}
       </aside>
     </div>
   );

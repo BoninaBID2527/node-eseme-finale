@@ -63,8 +63,9 @@ Creati da `npm run seed`:
 | Utente | `marco@taskflow.test` | `password123` |
 | Utente | `sara@taskflow.test` | `password123` |
 | Utente | `luca@taskflow.test` | `password123` |
+| Utente | `chiara@taskflow.test` · `davide@taskflow.test` · `elisa@taskflow.test` | `password123` |
 
-Il seed crea progetti con task, messaggi, due inviti in attesa (Marco → Giulia, Sara → Marco) e una segnalazione aperta da moderare (un progetto-spam di Luca). **Non cancella nulla:** ogni utente e progetto viene creato solo se manca, quindi si può rilanciare e si può usare su un database con dati veri. Si rifiuta di partire con `NODE_ENV=production`.
+Su un database vuoto il seed crea **8 utenti e 15 progetti** (pubblici, privati, uno archiviato) con **43 task con etichette**, **19 commenti**, la **cronologia delle attività** di ogni progetto, 16 messaggi di chat, notifiche, **5 inviti** (4 in attesa e 1 rifiutato) e **2 segnalazioni** (una aperta da moderare, un progetto-spam di Luca, e una già archiviata dall'admin). **Non cancella nulla:** ogni utente, progetto, task, commento, invito e segnalazione viene creato solo se manca (e i progetti demo già presenti vengono completati con etichette, commenti e cronologia), quindi si può rilanciare e si può usare su un database con dati veri. Si rifiuta di partire con `NODE_ENV=production`.
 
 **Per vedere il tempo reale:** apri due finestre (una in incognito), entra come Giulia e come Marco nello stesso progetto, poi sposta un task, scrivi in chat o invita qualcuno: l'altra finestra si aggiorna da sola.
 
@@ -104,16 +105,19 @@ backend/
     app.js              configura Express (middleware, rotte, errori): usato anche dai test
     server.js           connette il database e avvia HTTP + Socket.IO
     config/             env.js (variabili), db.js (connessione), migrate.js (migrazioni idempotenti)
-    models/             User, Project, Task, Message, Notification, Invitation, Report, RevokedToken
+    models/             User, Project, Task, TaskComment, Activity, Message, Notification,
+                        Invitation, Report, RevokedToken
     middleware/         auth (JWT), projectAccess (ruoli sul progetto), upload (copertine),
                         errorHandler, rateLimit, security, validateId
-    controllers/        la logica di ogni area (auth, progetti, membri/inviti, task, chat,
-                        dashboard, notifiche, segnalazioni, admin)
+    controllers/        la logica di ogni area (auth, progetti, membri/inviti, task, commenti,
+                        cronologia, chat, dashboard, notifiche, segnalazioni, admin)
     routes/             associano URL → middleware → controller
     sockets/            index.js (autenticazione e room), emit.js (eventi, notifiche, espulsioni)
-    utils/              AppError, validate (Validator), token, pagination, projectData
+    utils/              AppError, validate (Validator), token, pagination, projectData,
+                        activity (registro delle attività)
   scripts/              seed.js + demoData.js
-  tests/                integrazione: auth, progetti, inviti, task/chat, admin, realtime
+  tests/                integrazione: auth, progetti, inviti, task/chat, commenti/etichette/
+                        cronologia, admin, realtime
   uploads/              copertine caricate (non versionate)
 frontend/
   src/
@@ -136,6 +140,8 @@ docs/                   guida all'esame e immagini
 User ──< Project (owner)            Un progetto ha un proprietario e molti membri (User)
 User >──< Project (members)
 Project ──< Task ──> User           Un task ha un assegnatario (un membro) e un autore
+Task ──< TaskComment ──> User         Commenti sul singolo task
+Project ──< Activity ──> User       Cronologia delle attività del progetto
 Project ──< Message ──> User        Chat del progetto
 Project ──< Invitation ──> User     Invito a un utente (pending / accepted / declined / cancelled)
 Project ──< Report ──> User         Segnalazione (open / dismissed / actioned)
@@ -147,8 +153,10 @@ RevokedToken                        Token invalidati dal logout (indice TTL: spa
 | --- | --- |
 | **User** | name, email (unica), passwordHash (bcrypt), role (`user`/`admin`), blocked, passwordChangedAt |
 | **Project** | title, description, category, technologies[], visibility (`public`/`private`), coverImage, owner, members[], status (`active`/`archived`/`hidden`) |
-| **Task** | project, title, description, dueDate, priority (`low`/`medium`/`high`), status (`todo`/`in_progress`/`done`), assignee, createdBy |
-| **Message** | project, author, text |
+| **Task** | project, title, description, dueDate, priority (`low`/`medium`/`high`), status (`todo`/`in_progress`/`done`), assignee, **labels[]** (max 5, max 20 caratteri), createdBy |
+| **TaskComment** | project, task, author, text (max 1000 caratteri) |
+| **Activity** | project, actor, type, text, task — registro di chi ha fatto cosa nel progetto |
+| **Message** | project, author, text (chat del progetto) |
 | **Notification** | user, type, text, project, task, invitation, read |
 | **Invitation** | project, invitee, inviter, status — un solo invito `pending` per coppia progetto/utente (indice parziale unico) |
 | **Report** | project, reporter, reason, status, resolvedBy, resolvedAt, adminNote |
@@ -191,7 +199,7 @@ I controlli sono sempre **sul server**: nascondere un pulsante nell'interfaccia 
 
 - **si rimuove un membro** (o esce da solo): perde accesso a bacheca e chat, i task che gli erano assegnati restano senza assegnatario (le bacheche si aggiornano live), esce dalla room Socket.IO e riceve una notifica;
 - **si archivia un progetto:** diventa di sola lettura per tutti, a livello di API e di interfaccia, in tempo reale;
-- **si elimina un progetto** (con conferma): si cancellano task, messaggi, inviti, segnalazioni, notifiche collegate e la copertina; chi è connesso riceve `project:deleted` e viene tolto dalla room;
+- **si elimina un progetto** (con conferma): si cancellano task, commenti, cronologia, messaggi, inviti, segnalazioni, notifiche collegate e la copertina; chi è connesso riceve `project:deleted` e viene tolto dalla room;
 - **un admin oscura un progetto:** esce dal catalogo, le segnalazioni aperte diventano "gestite", il proprietario viene avvisato e i membri (tranne lui) vengono espulsi dalla room;
 - **un admin blocca un utente:** token rifiutati (`403`) e login negato; i suoi socket ricevono `session:ended` e vengono chiusi subito.
 
@@ -207,9 +215,11 @@ Socket.IO affianca le API REST, **non le sostituisce**: ogni azione passa da una
 | --- | --- | --- |
 | `task:created` · `task:updated` · `task:moved` · `task:deleted` | `project:<id>` | un task cambia |
 | `chat:message` | `project:<id>` | nuovo messaggio |
+| `comment:created` · `comment:deleted` | `project:<id>` | commento su un task |
+| `activity:new` | `project:<id>` | nuova voce nella cronologia del progetto |
 | `member:joined` · `member:removed` | `project:<id>` | cambia la lista membri |
 | `project:updated` · `project:deleted` | `project:<id>` | modifica, archivio, oscuramento, cancellazione |
-| `notification:new` | `user:<id>` | task assegnato o spostato, nuovo membro, invito, segnalazione (agli admin), oscuramento |
+| `notification:new` | `user:<id>` | task assegnato, spostato o commentato, nuovo membro, invito, segnalazione (agli admin), oscuramento |
 | `invitation:created` · `invitation:updated` | `user:<id>` | invito ricevuto o annullato |
 | `session:ended` | socket | blocco, logout, scadenza del token |
 
@@ -248,6 +258,9 @@ Tutte le rotte sono sotto `/api`. Gli errori hanno sempre la forma `{ "message":
 | PATCH | `/projects/:id/tasks/:taskId/status` (`{ status }`) | membri |
 | PATCH | `/projects/:id/tasks/:taskId/assignee` (`{ assignee }`) | membri |
 | GET | `/tasks/mine?status=&due=&q=&page=` | utente |
+| GET · POST | `/projects/:id/tasks/:taskId/comments` (`?before=<id>&limit=`) | membri |
+| DELETE | `/projects/:id/tasks/:taskId/comments/:commentId` | autore del commento o proprietario del progetto |
+| GET | `/projects/:id/activity` (`?before=<id>&limit=`) | membri |
 | GET · POST | `/projects/:id/messages` (`?before=<id>&limit=`) | membri |
 | GET | `/dashboard` | utente |
 | GET | `/notifications?unread=&page=` · `/notifications/unread-count` | utente |
@@ -260,7 +273,7 @@ Tutte le rotte sono sotto `/api`. Gli errori hanno sempre la forma `{ "message":
 
 ### Collection Postman
 
-In `postman/` ci sono la collection **TaskFlow API** (98 richieste in 9 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **TaskFlow – locale**.
+In `postman/` ci sono la collection **TaskFlow API** (111 richieste in 10 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **TaskFlow – locale**.
 
 1. Importa i due file in Postman e seleziona l'environment.
 2. Avvia MongoDB e il backend ed esegui `npm run seed` (serve per l'admin).
@@ -272,7 +285,9 @@ Le richieste che iniziano con `⚠` provano i casi di errore (validazione, 401, 
 
 React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libreria UI). Stato: Context per sessione, toast, conferme e connessione live; i dati delle pagine sono caricati con piccoli hook (`useAsync`) e tenuti nell'URL quando sono filtri (`?q=…&page=2`).
 
-**Pagine:** accesso/registrazione · Dashboard · Catalogo · I miei progetti · I miei task · Notifiche · Profilo · Nuovo progetto · Progetto (Panoramica, Bacheca, Membri, Chat, Impostazioni) · Amministrazione (Segnalazioni, Progetti, Utenti).
+**Pagine:** accesso/registrazione · Dashboard · Catalogo · I miei progetti · I miei task · Notifiche · Profilo · Nuovo progetto · Progetto (Panoramica con avanzamento e cronologia, Bacheca, Membri, Chat, Impostazioni) · Amministrazione (Segnalazioni, Progetti, Utenti).
+
+**Task:** dal dettaglio di un task si modificano i campi, si scrivono **etichette** (con suggerimenti da quelle già usate nel progetto; si filtra la bacheca per etichetta) e si leggono e scrivono i **commenti**, che arrivano in tempo reale agli altri membri; ogni scheda mostra etichette e numero di commenti. La **cronologia** nella panoramica elenca le azioni del progetto (task creati, spostati, assegnati, commenti, ingressi e uscite) e si aggiorna live.
 
 **Palette** (`frontend/src/styles/tokens.css`): carbone `#101010`, giallo `#FFD600`, bianco `#FFFFFF` e grigi neutri. Il giallo è riservato ad azioni principali, selezioni, focus e dettagli del marchio; sui pulsanti gialli il testo è sempre nero. Colori semantici (errore, successo) sobri e con contrasto adeguato.
 
@@ -294,10 +309,10 @@ React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libre
 
 | Cosa | Comando | Esito dell'ultima esecuzione |
 | --- | --- | --- |
-| Backend: test di integrazione (autenticazione, permessi, filtri, task, chat, inviti, admin, upload, Socket.IO) | `cd backend && npm test` | 64 test, 6 suite, tutti superati |
-| API: collection Postman con Newman | `npx newman run postman/TaskFlow.postman_collection.json -e postman/TaskFlow.postman_environment.json` | 98 richieste, 147 verifiche, 0 fallite |
+| Backend: test di integrazione (autenticazione, permessi, filtri, task, chat, inviti, admin, upload, Socket.IO) | `cd backend && npm test` | 78 test, 7 suite, tutti superati |
+| API: collection Postman con Newman | `npx newman run postman/TaskFlow.postman_collection.json -e postman/TaskFlow.postman_environment.json` | 111 richieste, 170 verifiche, 0 fallite |
 | Frontend: build di produzione | `cd frontend && npm run build` | ok |
-| Browser: due utenti in parallelo, mobile, accessibilità | `cd e2e && npm test` | 33 scenari su 33 superati, nessun errore in console |
+| Browser: due utenti in parallelo, mobile, accessibilità | `cd e2e && npm test` | 37 scenari su 37 superati, nessun errore in console |
 
 I test del backend e quelli end-to-end richiedono MongoDB acceso; gli end-to-end vanno eseguiti su un database di prova (istruzioni in [e2e/README.md](e2e/README.md)).
 
@@ -320,6 +335,7 @@ I test del backend e quelli end-to-end richiedono MongoDB acceso; gli end-to-end
 - Il token JWT è conservato in `localStorage`: è semplice, ma esposto a eventuali XSS (non c'è HTML inserito dagli utenti senza escaping). Un cookie `HttpOnly` sarebbe l'alternativa.
 - Le copertine stanno sul disco del server (`backend/uploads`): in un deploy con più istanze servirebbe uno storage condiviso.
 - I task nelle colonne sono ordinati per data di creazione: non si può riordinarli a mano dentro una colonna.
+- I commenti si possono eliminare ma non modificare. Le etichette sono libere (non c'è un elenco da gestire a livello di progetto). La cronologia salva il testo già composto: se un task viene rinominato dopo, le voci vecchie mantengono il titolo di allora (è il comportamento di un registro).
 - La ricerca testuale usa espressioni regolari: adeguata per i volumi di un progetto d'esame, non per milioni di progetti (servirebbe un indice di testo).
 - Le notifiche non vengono eliminate automaticamente col tempo.
 - Il formato dei campi data (`gg/mm/aaaa`) dipende dalla lingua del browser.

@@ -100,13 +100,22 @@ Solo JPG/PNG/WebP/GIF fino a 2 MB, nome generato dal server, controllo dei primi
 Il recupero password via email: è opzionale e richiede un server SMTP; non voglio mostrare conferme finte. Altri limiti sono elencati nel README ("Limiti noti").
 
 **Come hai verificato che funziona?**
-Quattro livelli: 64 test di integrazione del backend (Jest/Supertest, compresi i test Socket.IO), la collection Postman eseguita con Newman (98 richieste, 147 verifiche), un test end-to-end nel browser con due utenti in parallelo (33 scenari) e un controllo di accessibilità con axe-core.
+Quattro livelli: 78 test di integrazione del backend (Jest/Supertest, compresi i test Socket.IO), la collection Postman eseguita con Newman (111 richieste, 170 verifiche), un test end-to-end nel browser con due utenti in parallelo (37 scenari) e un controllo di accessibilità con axe-core.
+
+**Cosa contiene il database oltre ai progetti e ai task?**
+Utenti, membri, inviti, messaggi di chat, notifiche, segnalazioni e token revocati; in più **commenti sui task** (`TaskComment`), **cronologia del progetto** (`Activity`) ed **etichette** (un array di stringhe dentro il task). Le relazioni sono per riferimento (`ObjectId`): ad esempio un commento punta al progetto, al task e all'autore, e con `populate` si ottiene il nome dell'autore.
+
+**Perché la cronologia salva il testo già composto?**
+È un registro: "Giulia ha spostato "X" in In corso" deve restare vero anche se il task viene rinominato o eliminato. Il testo viene composto nel momento dell'azione (`utils/activity.js`) e propagato in tempo reale con `activity:new`; se il registro non si aggiornasse, l'azione principale non fallisce (errore solo loggato).
+
+**Come funzionano i commenti in tempo reale?**
+Il commento viene salvato con `POST` e poi emesso come `comment:created` alla room del progetto. Il frontend aggiorna sia la lista nel dettaglio del task sia il contatore sulla scheda (`useProjectTasks`). Possono eliminarlo l'autore e il proprietario del progetto, e chi segue il task (assegnatario e autore) riceve una notifica.
 
 ## 5. Se ti chiedono di modificare qualcosa dal vivo
 
 | Richiesta | Dove mettere mano |
 | --- | --- |
-| Aggiungere un campo a un task | `models/Task.js`, `controllers/taskController.js` (validazione), `components/TaskModal.jsx` |
+| Aggiungere un campo a un task | `models/Task.js`, `controllers/taskController.js` (validazione), `components/TaskModal.jsx` (le etichette sono un esempio completo) |
 | Nuova colonna della bacheca | `STATUSES` in `frontend/src/utils.js` e l'`enum` di `models/Task.js` |
 | Nuovo ruolo/permesso su una rotta | catena di middleware in `routes/projectRoutes.js` e `middleware/projectAccess.js` |
 | Nuovo evento in tempo reale | `emitToProject(...)` nel controller e `useSocketEvent(...)` nel frontend |

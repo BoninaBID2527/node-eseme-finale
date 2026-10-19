@@ -14,6 +14,7 @@ import { errorMessage, notificationLink, timeAgo } from '../utils';
 const ICONS = {
   task_assigned: 'tasks',
   task_moved: 'board',
+  task_comment: 'message',
   member_joined: 'users',
   member_left: 'users',
   member_removed: 'logout',

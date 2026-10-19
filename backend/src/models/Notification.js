@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const TYPES = [
   'task_assigned',
   'task_moved',
+  'task_comment',
   'member_joined',
   'member_removed',
   'member_left',

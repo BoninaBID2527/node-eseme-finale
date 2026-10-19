@@ -83,6 +83,20 @@ export function initials(name = '') {
 // Valore per <input type="date"> a partire da una data ISO.
 export const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
 
+// Icona della cronologia in base al tipo di attività.
+export const ACTIVITY_ICONS = {
+  task_created: 'plus',
+  task_moved: 'board',
+  task_assigned: 'user',
+  task_deleted: 'trash',
+  comment_added: 'message',
+  member_joined: 'user-plus',
+  member_removed: 'logout',
+  member_left: 'logout',
+  project_archived: 'archive',
+  project_reactivated: 'refresh',
+};
+
 // Percorso in cui aprire la risorsa a cui si riferisce una notifica (null = nessuna pagina).
 export function notificationLink(n) {
   const project = n.project && `/projects/${n.project}`;
@@ -91,6 +105,7 @@ export function notificationLink(n) {
       return '/notifications';
     case 'task_assigned':
     case 'task_moved':
+    case 'task_comment':
       return project && `${project}?tab=board${n.task ? `&task=${n.task}` : ''}`;
     case 'member_joined':
     case 'member_left':

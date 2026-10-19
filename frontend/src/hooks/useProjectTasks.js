@@ -29,7 +29,7 @@ export default function useProjectTasks(projectId, enabled) {
       setState((s) => {
         if (!s.tasks) return s;
         const exists = s.tasks.some((t) => t._id === task._id);
-        return { ...s, tasks: exists ? s.tasks.map((t) => (t._id === task._id ? task : t)) : [...s.tasks, task] };
+        return { ...s, tasks: exists ? s.tasks.map((t) => (t._id === task._id ? { ...t, ...task } : t)) : [...s.tasks, task] };
       });
     },
     [projectId]
@@ -48,6 +48,20 @@ export default function useProjectTasks(projectId, enabled) {
     (taskId, changes) => setState((s) => ({ ...s, tasks: s.tasks && s.tasks.map((t) => (t._id === taskId ? { ...t, ...changes } : t)) })),
     []
   );
+
+  // Il numero di commenti di ogni task segue gli eventi live (i commenti si leggono nel dettaglio del task).
+  const bumpComments = useCallback(
+    (comment, delta) => {
+      if (comment.project !== projectId) return;
+      setState((s) => ({
+        ...s,
+        tasks: s.tasks && s.tasks.map((t) => (t._id === comment.task ? { ...t, commentCount: Math.max((t.commentCount || 0) + delta, 0) } : t)),
+      }));
+    },
+    [projectId]
+  );
+  useSocketEvent('comment:created', useCallback((c) => bumpComments(c, 1), [bumpComments]));
+  useSocketEvent('comment:deleted', useCallback((c) => bumpComments(c, -1), [bumpComments]));
 
   useSocketEvent('task:created', upsert);
   useSocketEvent('task:updated', upsert);

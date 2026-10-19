@@ -6,9 +6,10 @@ import { useToast } from '../context/ToastContext';
 import { errorMessage, formatDate, PRIORITIES, STATUSES, toDateInput } from '../utils';
 import Field from './Field';
 import Modal from './Modal';
+import TaskComments from './TaskComments';
 
 // Dettaglio di un task: creazione, modifica, riassegnazione ed eliminazione. In sola lettura se il progetto non è modificabile.
-export default function TaskModal({ projectId, task, defaultStatus = 'todo', people, readOnly, onClose, onSaved, onDeleted }) {
+export default function TaskModal({ projectId, task, defaultStatus = 'todo', people, knownLabels = [], canModerate = false, readOnly, onClose, onSaved, onDeleted }) {
   const toast = useToast();
   const confirm = useConfirm();
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
     priority: task?.priority ?? 'medium',
     status: task?.status ?? defaultStatus,
     assignee: task?.assignee?._id ?? '',
+    labels: task?.labels?.join(', ') ?? '',
   });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -34,7 +36,7 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
     setSaving(true);
     setErrors({});
     setFormError('');
-    const payload = { ...form, dueDate: form.dueDate || null, assignee: form.assignee || null };
+    const payload = { ...form, dueDate: form.dueDate || null, assignee: form.assignee || null, labels: form.labels };
     try {
       const data = task ? await api.put(`/projects/${projectId}/tasks/${task._id}`, payload) : await api.post(`/projects/${projectId}/tasks`, payload);
       onSaved(data.task);
@@ -66,7 +68,7 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
   };
 
   return (
-    <Modal title={readOnly ? 'Dettaglio task' : task ? 'Modifica task' : 'Nuovo task'} onClose={onClose}>
+    <Modal title={readOnly ? 'Dettaglio task' : task ? 'Modifica task' : 'Nuovo task'} onClose={onClose} size={task ? 'lg' : 'md'}>
       <form onSubmit={submit} className="form" noValidate>
         <fieldset className="form" disabled={readOnly}>
           <Field label="Titolo" error={errors.title}>
@@ -107,6 +109,14 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
               </select>
             </Field>
           </div>
+          <Field label="Etichette" error={errors.labels} optional hint="Separate da virgola (max 5), per esempio: bug, frontend">
+            <input value={form.labels} onChange={update('labels')} list="known-labels" maxLength={120} />
+          </Field>
+          <datalist id="known-labels">
+            {knownLabels.map((l) => (
+              <option key={l} value={l} />
+            ))}
+          </datalist>
         </fieldset>
 
         {task && (
@@ -134,6 +144,8 @@ export default function TaskModal({ projectId, task, defaultStatus = 'todo', peo
           )}
         </div>
       </form>
+
+      {task && <TaskComments projectId={projectId} taskId={task._id} readOnly={readOnly} canModerate={canModerate} />}
     </Modal>
   );
 }

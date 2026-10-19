@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const TaskComment = require('../models/TaskComment');
 const AppError = require('../utils/AppError');
 const { emitToProject, notifyUser } = require('../sockets/emit');
 const { Validator, escapeRegex } = require('../utils/validate');
 const { getPage, pageInfo } = require('../utils/pagination');
+const { logActivity } = require('../utils/activity');
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
@@ -20,6 +22,16 @@ function readAssignee(v, project, value) {
     return undefined;
   }
   return value;
+}
+
+// Etichette libere (max 5, max 20 caratteri ciascuna, senza doppioni anche se cambia il maiuscolo).
+function readLabels(v, value) {
+  const raw = Array.isArray(value) ? value : String(value ?? '').split(',');
+  const list = raw.map((l) => String(l).trim()).filter(Boolean);
+  const unique = list.filter((l, i) => list.findIndex((x) => x.toLowerCase() === l.toLowerCase()) === i);
+  if (unique.length > 5) v.fail('labels', 'Puoi usare al massimo 5 etichette');
+  if (unique.some((l) => l.length > 20)) v.fail('labels', 'Ogni etichetta può avere al massimo 20 caratteri');
+  return unique.slice(0, 5);
 }
 
 async function findTask(req) {
@@ -52,9 +64,29 @@ async function notifyMoved(task, project, actor) {
   }
 }
 
+const logMoved = (task, project, actor) =>
+  logActivity({ project, actor, type: 'task_moved', text: `${actor.name} ha spostato "${task.title}" in ${STATUS_LABEL[task.status]}`, task: task.id });
+
+const logAssigned = (task, project, actor) =>
+  logActivity({
+    project,
+    actor,
+    type: 'task_assigned',
+    text: task.assignee ? `${actor.name} ha assegnato "${task.title}" a ${task.assignee.name}` : `${actor.name} ha tolto l'assegnatario di "${task.title}"`,
+    task: task.id,
+  });
+
 async function listTasks(req, res) {
   const tasks = await Task.find({ project: req.project.id }).sort({ createdAt: 1 }).limit(1000).populate('assignee', 'name email');
-  res.json({ tasks });
+
+  // Numero di commenti per task, con una sola query per tutta la bacheca.
+  const counts = await TaskComment.aggregate([
+    { $match: { project: req.project._id } },
+    { $group: { _id: '$task', count: { $sum: 1 } } },
+  ]);
+  const byTask = new Map(counts.map((c) => [String(c._id), c.count]));
+
+  res.json({ tasks: tasks.map((t) => ({ ...t.toJSON(), commentCount: byTask.get(String(t._id)) || 0 })) });
 }
 
 async function createTask(req, res) {
@@ -66,6 +98,7 @@ async function createTask(req, res) {
     priority: v.oneOf('priority', body.priority || 'medium', PRIORITIES, 'Priorità'),
     status: v.oneOf('status', body.status || 'todo', STATUSES, 'Stato'),
     assignee: readAssignee(v, project, body.assignee),
+    labels: readLabels(v, body.labels),
   };
   if (body.dueDate) data.dueDate = v.date('dueDate', body.dueDate, 'La scadenza');
   v.throwIfErrors();
@@ -75,6 +108,8 @@ async function createTask(req, res) {
 
   emitToProject(project.id, 'task:created', task);
   await notifyAssigned(task, project, req.user);
+  await logActivity({ project, actor: req.user, type: 'task_created', text: `${req.user.name} ha creato il task "${task.title}"`, task: task.id });
+  if (task.assignee) await logAssigned(task, project, req.user);
   res.status(201).json({ task });
 }
 
@@ -91,6 +126,7 @@ async function updateTask(req, res) {
   if (body.priority !== undefined) task.priority = v.oneOf('priority', body.priority, PRIORITIES, 'Priorità');
   if (body.status !== undefined) task.status = v.oneOf('status', body.status, STATUSES, 'Stato');
   if (body.assignee !== undefined) task.assignee = readAssignee(v, project, body.assignee);
+  if (body.labels !== undefined) task.labels = readLabels(v, body.labels);
   if (body.dueDate !== undefined) task.dueDate = body.dueDate ? v.date('dueDate', body.dueDate, 'La scadenza') : undefined;
   v.throwIfErrors();
 
@@ -98,8 +134,15 @@ async function updateTask(req, res) {
   await populateTask(task);
 
   emitToProject(project.id, 'task:updated', task);
-  if (task.status !== previousStatus) await notifyMoved(task, project, req.user);
-  if (task.assignee && task.assignee._id.toString() !== previousAssignee) await notifyAssigned(task, project, req.user);
+  if (task.status !== previousStatus) {
+    await notifyMoved(task, project, req.user);
+    await logMoved(task, project, req.user);
+  }
+  const assigneeId = task.assignee ? task.assignee._id.toString() : null;
+  if (assigneeId !== previousAssignee) {
+    await logAssigned(task, project, req.user);
+    if (assigneeId) await notifyAssigned(task, project, req.user);
+  }
   res.json({ task });
 }
 
@@ -118,6 +161,7 @@ async function moveTask(req, res) {
     await populateTask(task);
     emitToProject(project.id, 'task:moved', task);
     await notifyMoved(task, project, req.user);
+    await logMoved(task, project, req.user);
   } else {
     await populateTask(task);
   }
@@ -139,16 +183,21 @@ async function assignTask(req, res) {
   await populateTask(task);
 
   emitToProject(project.id, 'task:updated', task);
-  if (task.assignee && task.assignee._id.toString() !== previous) await notifyAssigned(task, project, req.user);
+  const assigneeId = task.assignee ? task.assignee._id.toString() : null;
+  if (assigneeId !== previous) {
+    await logAssigned(task, project, req.user);
+    if (assigneeId) await notifyAssigned(task, project, req.user);
+  }
   res.json({ task });
 }
 
 async function deleteTask(req, res) {
   const { project } = req;
   const task = await findTask(req);
-  await task.deleteOne();
+  await Promise.all([task.deleteOne(), TaskComment.deleteMany({ task: task.id })]);
 
   emitToProject(project.id, 'task:deleted', { _id: task.id, project: project.id });
+  await logActivity({ project, actor: req.user, type: 'task_deleted', text: `${req.user.name} ha eliminato il task "${task.title}"` });
   res.json({ message: 'Task eliminato' });
 }
 

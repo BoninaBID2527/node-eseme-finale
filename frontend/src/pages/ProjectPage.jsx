@@ -196,6 +196,7 @@ export default function ProjectPage() {
             project={project}
             people={people}
             readOnly={!writable}
+            canModerate={isOwner}
             tasksApi={tasksApi}
             openTaskId={params.get('task')}
             onTaskOpened={clearTaskParam}

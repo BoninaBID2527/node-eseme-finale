@@ -64,6 +64,10 @@
     {
       "key": "messageId",
       "value": ""
+    },
+    {
+      "key": "commentId",
+      "value": ""
     }
   ],
   "item": [
@@ -1937,6 +1941,56 @@
           ]
         },
         {
+          "name": "⚠ Più di 5 etichette",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"x\",\n  \"labels\": \"a,b,c,d,e,f\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo labels\", () => pm.expect(json.errors.labels).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "⚠ Task assegnato a chi non è membro",
           "request": {
             "method": "POST",
@@ -2014,7 +2068,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Disegnare la home\",\n  \"description\": \"Mockup e layout\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2030-06-30\",\n  \"status\": \"todo\",\n  \"assignee\": \"{{memberId}}\"\n}",
+              "raw": "{\n  \"title\": \"Disegnare la home\",\n  \"description\": \"Mockup e layout\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2030-06-30\",\n  \"status\": \"todo\",\n  \"assignee\": \"{{memberId}}\",\n  \"labels\": [\n    \"frontend\",\n    \"urgente\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2031,6 +2085,7 @@
                   "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
                   "const json = pm.response.json();",
                   "pm.test(\"stato iniziale todo\", () => pm.expect(json.task.status === \"todo\").to.be.ok);",
+                  "pm.test(\"etichette salvate\", () => pm.expect(json.task.labels.length === 2).to.be.ok);",
                   "pm.collectionVariables.set('taskId', json.task._id);"
                 ]
               }
@@ -2068,14 +2123,15 @@
                 "exec": [
                   "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
                   "const json = pm.response.json();",
-                  "pm.test(\"task presente\", () => pm.expect(json.tasks.some(t => t._id === pm.collectionVariables.get(\"taskId\"))).to.be.ok);"
+                  "pm.test(\"task presente\", () => pm.expect(json.tasks.some(t => t._id === pm.collectionVariables.get(\"taskId\"))).to.be.ok);",
+                  "pm.test(\"con numero di commenti\", () => pm.expect(typeof json.tasks[0].commentCount === \"number\").to.be.ok);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Modifica task",
+          "name": "Modifica task (titolo, priorità, etichette)",
           "request": {
             "method": "PUT",
             "header": [
@@ -2103,7 +2159,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Disegnare la home page\",\n  \"priority\": \"medium\"\n}",
+              "raw": "{\n  \"title\": \"Disegnare la home page\",\n  \"priority\": \"medium\",\n  \"labels\": \"frontend, design\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2117,7 +2173,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"etichette aggiornate\", () => pm.expect(json.task.labels.join() === \"frontend,design\").to.be.ok);"
                 ]
               }
             }
@@ -2420,6 +2478,537 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4b. Commenti sui task e cronologia",
+      "description": "",
+      "item": [
+        {
+          "name": "⚠ Commento da un estraneo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"ciao\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Commento vuoto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"  \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"errore sul campo text\", () => pm.expect(json.errors.text).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aggiungi un commento (membro)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ci lavoro oggi\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"con autore e data\", () => pm.expect(json.comment.author.name && json.comment.createdAt).to.be.ok);",
+                  "pm.collectionVariables.set('commentId', json.comment._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aggiungi un commento (proprietario)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Perfetto, grazie!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Elenco commenti del task",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "30",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"due commenti in ordine\", () => pm.expect(json.comments.length === 2 && json.comments[0].text === \"Ci lavoro oggi\").to.be.ok);",
+                  "pm.test(\"flag hasMore\", () => pm.expect(json.hasMore === false).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ I commenti sono riservati ai membri",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Un membro non cancella i commenti altrui",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Elimina il proprio commento",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Commento già eliminato",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "tasks",
+                "{{taskId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cronologia del progetto",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "activity"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "15",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"attività presenti\", () => pm.expect(json.activities.length >= 3).to.be.ok);",
+                  "pm.test(\"con autore e testo\", () => pm.expect(json.activities[0].actor.name && json.activities[0].text).to.be.ok);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ La cronologia è riservata ai membri",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token3}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "activity"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ Cursore della cronologia non valido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "activity"
+              ],
+              "query": [
+                {
+                  "key": "before",
+                  "value": "zzz",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Codice HTTP 400', () => pm.response.to.have.status(400));"
                 ]
               }
             }

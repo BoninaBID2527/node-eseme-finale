@@ -3,6 +3,8 @@ const Task = require('../models/Task');
 const Message = require('../models/Message');
 const Report = require('../models/Report');
 const Invitation = require('../models/Invitation');
+const TaskComment = require('../models/TaskComment');
+const Activity = require('../models/Activity');
 const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const { deleteUpload } = require('../middleware/upload');
@@ -10,6 +12,7 @@ const { Validator, parseList, escapeRegex } = require('../utils/validate');
 const { getPage, pageInfo } = require('../utils/pagination');
 const { projectPayload, attachProgress } = require('../utils/projectData');
 const { emitToProject, evictFromProject } = require('../sockets/emit');
+const { logActivity } = require('../utils/activity');
 
 const VISIBILITY = ['public', 'private'];
 const SORTS = { recent: { createdAt: -1 }, oldest: { createdAt: 1 }, title: { title: 1 } };
@@ -194,6 +197,13 @@ async function archiveProject(req, res) {
   await project.save();
 
   emitToProject(project.id, 'project:updated', projectPayload(project));
+  const archived = project.status === 'archived';
+  await logActivity({
+    project,
+    actor: req.user,
+    type: archived ? 'project_archived' : 'project_reactivated',
+    text: archived ? `${req.user.name} ha archiviato il progetto` : `${req.user.name} ha riattivato il progetto`,
+  });
   res.json({ project });
 }
 
@@ -209,6 +219,8 @@ async function deleteProject(req, res) {
     Report.deleteMany({ project: id }),
     Invitation.deleteMany({ project: id }),
     Notification.deleteMany({ project: id }),
+    TaskComment.deleteMany({ project: id }),
+    Activity.deleteMany({ project: id }),
   ]);
   deleteUpload(project.coverImage);
   await project.deleteOne();

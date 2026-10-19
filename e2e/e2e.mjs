@@ -287,6 +287,57 @@ await step('Validazione del task: errore accanto al campo', async () => {
   await dlg.waitFor({ state: 'detached' });
 });
 
+await step('Etichette: si assegnano dal dettaglio, compaiono sulla scheda e filtrano la bacheca', async () => {
+  const openTask = (page) => page.locator('[data-testid=task]', { hasText: 'Task sincronizzato (mio)' }).locator('.task-main').click();
+  await openTask(owner.page);
+  const dlg = owner.page.locator('[role=dialog]');
+  await dlg.getByLabel('Etichette').fill('bug, frontend, bug');
+  await dlg.locator('button:has-text("Salva")').click();
+  const card = marco.page.locator('[data-testid=task]', { hasText: 'Task sincronizzato (mio)' });
+  await card.locator('.label:has-text("frontend")').waitFor({ timeout: 6000 });
+  assert((await card.locator('.label').count()) === 2, 'le etichette doppie non sono state unite');
+  await marco.page.selectOption('select[aria-label="Filtra per etichetta"]', 'bug');
+  assert((await marco.page.locator('[data-testid=task]').count()) === 1, 'filtro per etichetta non applicato');
+  await marco.page.click('button:has-text("Azzera")');
+  await openTask(owner.page);
+  await dlg.getByLabel('Etichette').fill('a,b,c,d,e,f');
+  await dlg.locator('button:has-text("Salva")').click();
+  await dlg.locator('.field-error:has-text("massimo 5")').waitFor();
+  await owner.page.keyboard.press('Escape');
+});
+await step('Commenti sul task: live per gli altri, senza duplicati, contatore, notifica, eliminazione', async () => {
+  const openTask = (page) => page.locator('[data-testid=task]', { hasText: 'Task sincronizzato (mio)' }).locator('.task-main').click();
+  await openTask(owner.page);
+  await openTask(marco.page);
+  await marco.page.locator('#comment-input').fill('Commento di Marco');
+  await marco.page.click('button:has-text("Commenta")');
+  await owner.page.locator('[data-testid=comments] .comment:has-text("Commento di Marco")').waitFor({ timeout: 6000 });
+  await marco.page.waitForTimeout(400);
+  assert((await marco.page.locator('[data-testid=comments] .comment').count()) === 1, 'commento duplicato per chi lo scrive');
+  await toastWith(owner.page, 'ha commentato');
+  await owner.page.keyboard.press('Escape');
+  await marco.page.keyboard.press('Escape');
+  await owner.page.locator('[data-testid=task]', { hasText: 'Task sincronizzato (mio)' }).locator('.task-comments:has-text("1")').waitFor();
+  // il proprietario del progetto può moderare i commenti dei membri
+  await openTask(owner.page);
+  await owner.page.getByRole('button', { name: /Elimina il commento di Marco Bianchi/ }).click();
+  await confirmDialog(owner.page);
+  await owner.page.locator('[data-testid=comments] .comment').waitFor({ state: 'detached' });
+  await owner.page.keyboard.press('Escape');
+  await marco.page.locator('[data-testid=task]:has-text("Task sincronizzato (mio)") .task-comments').waitFor({ state: 'detached', timeout: 6000 });
+});
+await step('Cronologia del progetto: voci reali e aggiornamento live', async () => {
+  await tab(owner.page, 'Panoramica');
+  await tab(marco.page, 'Panoramica');
+  await owner.page.locator('[data-testid=activity] .activity-item:has-text("ha creato il task")').waitFor();
+  const before = await marco.page.locator('[data-testid=activity] .activity-item').count();
+  await apiCall(await apiLogin(ownerEmail), 'POST', `/projects/${projectId}/tasks`, { title: 'Task per la cronologia' });
+  await marco.page.locator('[data-testid=activity] .activity-item:has-text("Task per la cronologia")').waitFor({ timeout: 6000 });
+  assert((await marco.page.locator('[data-testid=activity] .activity-item').count()) > before, 'la cronologia non è cresciuta');
+  await tab(owner.page, 'Bacheca');
+  await tab(marco.page, 'Bacheca');
+});
+
 // ====================================================================== E. Chat
 await step('Chat: invio/ricezione live senza duplicati', async () => {
   await tab(owner.page, 'Chat');
@@ -532,6 +583,25 @@ await step('Eliminazione progetto con conferma; cover rimossa dal disco', async 
   assert((await fetch(BASE + coverSrc)).status === 404, 'il file della copertina è rimasto sul disco dopo la cancellazione');
 });
 
+await step('Dati dimostrativi: etichette, commenti e cronologia nel progetto demo', async () => {
+  const { context, page } = await open('seed-demo');
+  await login(page, 'giulia@taskflow.test');
+  await page.goto(`${BASE}/projects`);
+  await page.click('text=Gestionale per la palestra');
+  await page.waitForSelector('[data-testid=task]');
+  assert((await page.locator('.label:has-text("bug")').count()) > 0, 'etichette demo assenti');
+  await page.locator('[data-testid=task]', { hasText: 'Calendario dei corsi' }).locator('.task-main').click();
+  await page.locator('[data-testid=comments] .comment').first().waitFor();
+  assert((await page.locator('[data-testid=comments] .comment').count()) === 3, 'commenti demo assenti');
+  await page.keyboard.press('Escape');
+  await tab(page, 'Panoramica');
+  await page.locator('[data-testid=activity] .activity-item').first().waitFor();
+  assert((await page.locator('[data-testid=activity] .activity-item').count()) === 10, 'la prima pagina della cronologia deve avere 10 voci');
+  await page.click('button:has-text("Mostra attività precedenti")');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=activity] .activity-item').length > 10);
+  await context.close();
+});
+
 // ====================================================================== O. Mobile
 await step('Mobile (390px): menu, navigazione, bacheca con "Sposta in", nessun overflow orizzontale', async () => {
   const { context, page } = await open('mobile', { width: 390, height: 844 });
@@ -615,7 +685,9 @@ await step('Accessibilità (axe-core): nessuna violazione seria o critica nelle 
   await page.click('button[role=tab]:has-text("Bacheca")');
   await page.getByRole('button', { name: /Azioni per il task/ }).first().click(); await check('menu del task');
   await page.keyboard.press('Escape');
-  await page.locator('[data-testid=task] .task-main').first().click(); await check('dettaglio task (dialogo)');
+  await page.locator('[data-testid=task]', { hasText: 'Calendario dei corsi' }).locator('.task-main').click();
+  await page.locator('[data-testid=comments] .comment').first().waitFor();
+  await check('dettaglio task con commenti (dialogo)');
   await page.keyboard.press('Escape');
   const adminPage = await open('axe-admin');
   await login(adminPage.page, 'admin@taskflow.test', 'admin1234');

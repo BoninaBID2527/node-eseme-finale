@@ -12,6 +12,7 @@ import { ErrorState } from './StateMessage';
 import TaskModal from './TaskModal';
 
 const NEXT = { ArrowRight: 1, ArrowLeft: -1 };
+const EMPTY_FILTERS = { q: '', assignee: '', priority: '', due: '', label: '' };
 
 function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, onDelete, onDragStart, onDragEnd }) {
   const isMine = task.assignee?._id === me;
@@ -56,9 +57,22 @@ function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, on
     >
       <button className="task-main" onClick={() => onOpen(task)} onKeyDown={onKeyDown} aria-label={`${task.title}. ${statusLabel(task.status)}${task.assignee ? `, assegnato a ${task.assignee.name}` : ''}. ${readOnly ? '' : 'Maiusc e frecce per spostare.'}`}>
         <span className="task-title">{task.title}</span>
+        {task.labels?.length > 0 && (
+          <span className="label-list">
+            {task.labels.slice(0, 3).map((l) => (
+              <span key={l} className="label">{l}</span>
+            ))}
+            {task.labels.length > 3 && <span className="label label-more">+{task.labels.length - 3}</span>}
+          </span>
+        )}
         <span className="task-meta">
           <PriorityBadge value={task.priority} />
           <DueLabel task={task} />
+          {task.commentCount > 0 && (
+            <span className="task-comments" title={`${task.commentCount} commenti`}>
+              <Icon name="message" size={14} /> {task.commentCount}
+            </span>
+          )}
           <span className="spacer" />
           {task.assignee ? <Avatar name={task.assignee.name} size={24} /> : <span className="task-unassigned" title="Nessun assegnatario"><Icon name="user" size={14} /></span>}
         </span>
@@ -70,7 +84,7 @@ function TaskCard({ task, me, readOnly, dragging, onOpen, onMove, onAssignMe, on
 
 // Bacheca a 3 colonne. Spostare un task: trascinamento con il mouse, menu "Sposta in" (touch e tastiera)
 // oppure Maiusc + frecce sulla scheda. In caso di errore lo stato torna quello corretto.
-export default function Board({ project, people, readOnly, tasksApi, openTaskId, onTaskOpened }) {
+export default function Board({ project, people, readOnly, canModerate, tasksApi, openTaskId, onTaskOpened }) {
   const { user } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
@@ -79,7 +93,7 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
   const [draggingId, setDraggingId] = useState(null);
   const [overColumn, setOverColumn] = useState(null);
   const [announce, setAnnounce] = useState('');
-  const [filters, setFilters] = useState({ q: '', assignee: '', priority: '', due: '' });
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // Link diretto a un task (da notifiche e dashboard): apre il dettaglio appena i task sono caricati.
   useEffect(() => {
@@ -98,6 +112,7 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
       if (filters.assignee === 'none' && t.assignee) return false;
       if (filters.assignee && !['me', 'none'].includes(filters.assignee) && t.assignee?._id !== filters.assignee) return false;
       if (filters.priority && t.priority !== filters.priority) return false;
+      if (filters.label && !(t.labels || []).some((l) => l.toLowerCase() === filters.label.toLowerCase())) return false;
       const { days } = dueInfo(t);
       if (filters.due === 'overdue' && !(days !== null && days < 0 && t.status !== 'done')) return false;
       if (filters.due === 'week' && !(days !== null && days >= 0 && days <= 7)) return false;
@@ -105,6 +120,13 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
       return true;
     });
   }, [tasks, filters, user._id]);
+
+  // Etichette già usate nel progetto (senza distinguere maiuscole): suggerimenti e filtro.
+  const knownLabels = useMemo(() => {
+    const seen = new Map();
+    (tasks || []).forEach((t) => (t.labels || []).forEach((l) => seen.has(l.toLowerCase()) || seen.set(l.toLowerCase(), l)));
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, 'it'));
+  }, [tasks]);
 
   const hasFilters = Object.values(filters).some(Boolean);
   const setFilter = (key) => (e) => setFilters({ ...filters, [key]: e.target.value });
@@ -183,6 +205,14 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
           <option value="medium">Media</option>
           <option value="low">Bassa</option>
         </select>
+        {knownLabels.length > 0 && (
+          <select aria-label="Filtra per etichetta" value={filters.label} onChange={setFilter('label')}>
+            <option value="">Etichetta</option>
+            {knownLabels.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+        )}
         <select aria-label="Filtra per scadenza" value={filters.due} onChange={setFilter('due')}>
           <option value="">Scadenza</option>
           <option value="overdue">Scaduti</option>
@@ -190,7 +220,7 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
           <option value="none">Senza scadenza</option>
         </select>
         {hasFilters && (
-          <button className="btn btn-sm" onClick={() => setFilters({ q: '', assignee: '', priority: '', due: '' })}>
+          <button className="btn btn-sm" onClick={() => setFilters(EMPTY_FILTERS)}>
             <Icon name="x" size={14} /> Azzera
           </button>
         )}
@@ -277,6 +307,8 @@ export default function Board({ project, people, readOnly, tasksApi, openTaskId,
           task={modal.task}
           defaultStatus={modal.status}
           people={people}
+          knownLabels={knownLabels}
+          canModerate={canModerate}
           readOnly={readOnly}
           onClose={() => setModal(null)}
           onSaved={upsert}

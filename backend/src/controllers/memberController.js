@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Invitation = require('../models/Invitation');
 const AppError = require('../utils/AppError');
 const { Validator } = require('../utils/validate');
+const { logActivity } = require('../utils/activity');
 const { emitToProject, emitToUser, joinProjectRoom, leaveProjectRoom, notifyUser, notifyUsers } = require('../sockets/emit');
 
 const isInProject = (project, userId) => project.owner.equals(userId) || project.members.some((m) => m.equals(userId));
@@ -111,6 +112,7 @@ async function acceptInvitation(req, res) {
     text: `${req.user.name} è entrato nel progetto "${project.title}"`,
     project: project.id,
   });
+  await logActivity({ project, actor: req.user, type: 'member_joined', text: `${req.user.name} è entrato nel progetto` });
 
   res.json({ project: { _id: project.id, title: project.title } });
 }
@@ -158,11 +160,13 @@ async function removeMember(req, res) {
   if (project.owner.equals(userId)) throw new AppError(400, 'Il proprietario non può essere rimosso');
   if (!project.members.some((m) => m.equals(userId))) throw new AppError(404, 'Questo utente non è un membro del progetto');
 
+  const removed = await User.findById(userId).select('name');
   await detachMember(project, userId);
   await notifyUser(userId, {
     type: 'member_removed',
     text: `Sei stato rimosso dal progetto "${project.title}"`,
   });
+  await logActivity({ project, actor: req.user, type: 'member_removed', text: `${req.user.name} ha rimosso ${removed ? removed.name : 'un membro'} dal progetto` });
   res.json({ message: 'Membro rimosso' });
 }
 
@@ -176,6 +180,7 @@ async function leaveProject(req, res) {
     text: `${req.user.name} ha lasciato il progetto "${project.title}"`,
     project: project.id,
   });
+  await logActivity({ project, actor: req.user, type: 'member_left', text: `${req.user.name} ha lasciato il progetto` });
   res.json({ message: 'Hai lasciato il progetto' });
 }
 

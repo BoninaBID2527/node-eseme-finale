@@ -119,6 +119,24 @@ describe('Tempo reale', () => {
     expect((await message).text).toBe('Benvenuto');
   });
 
+  test('commenti e cronologia arrivano ai membri in tempo reale', async () => {
+    const created = await request(app).post(`/api/projects/${project._id}/tasks`).set(authed(owner.token)).send({ title: 'Da commentare' });
+    const taskId = created.body.task._id;
+    const memberSocket = await socketFor(member.token);
+
+    const comment = waitFor(memberSocket, 'comment:created');
+    const activity = waitFor(memberSocket, 'activity:new');
+    await request(app).post(`/api/projects/${project._id}/tasks/${taskId}/comments`).set(authed(owner.token)).send({ text: 'Commento live' });
+    const c = await comment;
+    expect(c.text).toBe('Commento live');
+    expect(c.task).toBe(taskId);
+    expect((await activity).type).toBe('comment_added');
+
+    const removed = waitFor(memberSocket, 'comment:deleted');
+    await request(app).delete(`/api/projects/${project._id}/tasks/${taskId}/comments/${c._id}`).set(authed(owner.token));
+    expect((await removed)._id).toBe(c._id);
+  });
+
   test('un membro rimosso smette di ricevere gli eventi live del progetto', async () => {
     const removed = await createUser('Removed');
     await addMember(owner, project, removed);

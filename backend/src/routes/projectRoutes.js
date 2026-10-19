@@ -7,12 +7,15 @@ const projects = require('../controllers/projectController');
 const members = require('../controllers/memberController');
 const tasks = require('../controllers/taskController');
 const chat = require('../controllers/chatController');
+const comments = require('../controllers/commentController');
+const { listActivity } = require('../controllers/activityController');
 const { reportProject } = require('../controllers/reportController');
 
 router.param('id', validateId);
 router.param('taskId', validateId);
 router.param('invId', validateId);
 router.param('userId', validateId);
+router.param('commentId', validateId);
 
 // Il catalogo pubblico è consultabile anche senza login.
 router.get('/public', projects.listPublic);
@@ -44,6 +47,12 @@ router.put('/:id/tasks/:taskId', loadProject, requireMember, requireWritable, ta
 router.patch('/:id/tasks/:taskId/status', loadProject, requireMember, requireWritable, tasks.moveTask);
 router.patch('/:id/tasks/:taskId/assignee', loadProject, requireMember, requireWritable, tasks.assignTask);
 router.delete('/:id/tasks/:taskId', loadProject, requireMember, requireWritable, tasks.deleteTask);
+
+router.get('/:id/tasks/:taskId/comments', loadProject, requireMember, comments.listComments);
+router.post('/:id/tasks/:taskId/comments', loadProject, requireMember, requireWritable, comments.addComment);
+router.delete('/:id/tasks/:taskId/comments/:commentId', loadProject, requireMember, requireWritable, comments.deleteComment);
+
+router.get('/:id/activity', loadProject, requireMember, listActivity);
 
 router.get('/:id/messages', loadProject, requireMember, chat.listMessages);
 router.post('/:id/messages', loadProject, requireMember, requireWritable, chat.sendMessage);

@@ -1,5 +1,5 @@
-// Contenuti dimostrativi (utenti, progetti, task, messaggi). Le scadenze sono giorni da oggi (negativo = passato).
-// Sono dati d'esempio per provare l'app: gli account usano il dominio fittizio @taskflow.test.
+// Contenuti dimostrativi (utenti, progetti, task, commenti, messaggi). Le scadenze sono giorni da oggi
+// (negativo = passato). Sono dati d'esempio per provare l'app: gli account usano il dominio fittizio @taskflow.test.
 
 const users = [
   { key: 'admin', name: 'Amministratore', email: 'admin@taskflow.test', password: 'admin1234', role: 'admin' },
@@ -7,8 +7,12 @@ const users = [
   { key: 'marco', name: 'Marco Bianchi', email: 'marco@taskflow.test', password: 'password123' },
   { key: 'sara', name: 'Sara Verdi', email: 'sara@taskflow.test', password: 'password123' },
   { key: 'luca', name: 'Luca Esposito', email: 'luca@taskflow.test', password: 'password123' },
+  { key: 'chiara', name: 'Chiara Fontana', email: 'chiara@taskflow.test', password: 'password123' },
+  { key: 'davide', name: 'Davide Greco', email: 'davide@taskflow.test', password: 'password123' },
+  { key: 'elisa', name: 'Elisa Marini', email: 'elisa@taskflow.test', password: 'password123' },
 ];
 
+// Per ogni task: labels (etichette), comments (autore, testo, minuti fa) e messaggi di chat a livello di progetto.
 const projects = [
   {
     key: 'palestra',
@@ -20,13 +24,13 @@ const projects = [
     members: ['marco', 'sara'],
     createdDaysAgo: 21,
     tasks: [
-      { title: 'Schema del database degli abbonamenti', priority: 'high', status: 'done', due: -9, assignee: 'sara' },
-      { title: 'Login e ruoli (istruttore / socio)', priority: 'high', status: 'done', due: -6, assignee: 'giulia' },
-      { title: 'Calendario dei corsi', description: 'Vista settimanale con filtro per istruttore e sala.', priority: 'high', status: 'in_progress', due: 2, assignee: 'marco' },
-      { title: 'Prenotazione di un posto al corso', priority: 'medium', status: 'in_progress', due: 5, assignee: 'giulia' },
-      { title: 'Promemoria via email prima della lezione', priority: 'medium', status: 'todo', due: 9, assignee: 'sara' },
-      { title: 'Export mensile delle presenze in CSV', priority: 'low', status: 'todo', due: 16 },
-      { title: 'Correggere il fuso orario nelle prenotazioni', description: 'Le prenotazioni serali risultano spostate di un giorno.', priority: 'high', status: 'todo', due: -2, assignee: 'marco' },
+      { title: 'Schema del database degli abbonamenti', priority: 'high', status: 'done', due: -9, assignee: 'sara', labels: ['backend', 'database'], comments: [{ author: 'giulia', text: 'Ottimo lavoro, lo schema copre anche le sospensioni per infortunio?', ago: 14000 }, { author: 'sara', text: 'Sì, c\'è un campo "sospeso_fino_al" nel documento dell\'abbonamento.', ago: 13900 }] },
+      { title: 'Login e ruoli (istruttore / socio)', priority: 'high', status: 'done', due: -6, assignee: 'giulia', labels: ['backend', 'auth'] },
+      { title: 'Calendario dei corsi', description: 'Vista settimanale con filtro per istruttore e sala.', priority: 'high', status: 'in_progress', due: 2, assignee: 'marco', labels: ['frontend', 'calendario'], comments: [{ author: 'giulia', text: 'Ricordati di gestire i corsi che si ripetono ogni settimana.', ago: 4300 }, { author: 'marco', text: 'Preso. Uso una regola di ricorrenza invece di duplicare i corsi.', ago: 4200 }, { author: 'sara', text: 'Per i test ti passo un file con 30 corsi di esempio.', ago: 700 }] },
+      { title: 'Prenotazione di un posto al corso', priority: 'medium', status: 'in_progress', due: 5, assignee: 'giulia', labels: ['frontend', 'backend'] },
+      { title: 'Promemoria via email prima della lezione', priority: 'medium', status: 'todo', due: 9, assignee: 'sara', labels: ['backend', 'email'] },
+      { title: 'Export mensile delle presenze in CSV', priority: 'low', status: 'todo', due: 16, labels: ['report'] },
+      { title: 'Correggere il fuso orario nelle prenotazioni', description: 'Le prenotazioni serali risultano spostate di un giorno.', priority: 'high', status: 'todo', due: -2, assignee: 'marco', labels: ['bug', 'urgente'], comments: [{ author: 'giulia', text: 'Succede solo dopo le 23:00: sospetto della conversione in UTC.', ago: 2900 }, { author: 'marco', text: 'Confermo, salvo le date senza fuso. Sistemo prima di domani.', ago: 2850 }] },
     ],
     messages: [
       { author: 'giulia', text: 'Ciao a tutti! Ho preparato la bacheca: scegliete un task e assegnatevelo.' },
@@ -46,9 +50,9 @@ const projects = [
     members: ['giulia'],
     createdDaysAgo: 14,
     tasks: [
-      { title: 'Schermata di registrazione dell\'allenamento', priority: 'high', status: 'in_progress', due: 1, assignee: 'giulia' },
-      { title: 'Archivio degli esercizi', priority: 'medium', status: 'todo', due: 7, assignee: 'marco' },
-      { title: 'Grafico dei progressi', priority: 'low', status: 'todo', due: 20 },
+      { title: 'Schermata di registrazione dell\'allenamento', priority: 'high', status: 'in_progress', due: 1, assignee: 'giulia', labels: ['ui'], comments: [{ author: 'marco', text: 'Per le serie usiamo un contatore con + e −, più comodo che scrivere.', ago: 3000 }] },
+      { title: 'Archivio degli esercizi', priority: 'medium', status: 'todo', due: 7, assignee: 'marco', labels: ['dati'] },
+      { title: 'Grafico dei progressi', priority: 'low', status: 'todo', due: 20, labels: ['ui', 'grafici'] },
     ],
     messages: [
       { author: 'marco', text: 'Ho creato il progetto Firebase, vi mando gli accessi in privato.' },
@@ -65,8 +69,8 @@ const projects = [
     members: [],
     createdDaysAgo: 10,
     tasks: [
-      { title: 'Wireframe della home', priority: 'medium', status: 'done', due: -4, assignee: 'sara' },
-      { title: 'Pagina dell\'evento con mappa', priority: 'medium', status: 'todo', due: 12, assignee: 'sara' },
+      { title: 'Wireframe della home', priority: 'medium', status: 'done', due: -4, assignee: 'sara', labels: ['design'] },
+      { title: 'Pagina dell\'evento con mappa', priority: 'medium', status: 'todo', due: 12, assignee: 'sara', labels: ['frontend'] },
     ],
   },
   {
@@ -79,9 +83,9 @@ const projects = [
     members: ['giulia'],
     createdDaysAgo: 7,
     tasks: [
-      { title: 'Importare gli ordini degli ultimi 12 mesi', priority: 'high', status: 'done', due: -3, assignee: 'sara' },
-      { title: 'Pulizia dei dati dei resi', priority: 'medium', status: 'in_progress', due: 3, assignee: 'giulia' },
-      { title: 'Grafico del margine per categoria', priority: 'medium', status: 'todo', due: 8, assignee: 'sara' },
+      { title: 'Importare gli ordini degli ultimi 12 mesi', priority: 'high', status: 'done', due: -3, assignee: 'sara', labels: ['dati'] },
+      { title: 'Pulizia dei dati dei resi', priority: 'medium', status: 'in_progress', due: 3, assignee: 'giulia', labels: ['dati', 'qualità'], comments: [{ author: 'sara', text: 'Ci sono circa 200 resi senza motivo: li segniamo come "non specificato"?', ago: 1500 }, { author: 'giulia', text: 'Sì, meglio non scartarli. Aggiungo una colonna di controllo.', ago: 1400 }] },
+      { title: 'Grafico del margine per categoria', priority: 'medium', status: 'todo', due: 8, assignee: 'sara', labels: ['grafici'] },
     ],
   },
   {
@@ -94,8 +98,8 @@ const projects = [
     members: [],
     createdDaysAgo: 5,
     tasks: [
-      { title: 'Definire palette e tipografia', priority: 'high', status: 'in_progress', due: 4, assignee: 'giulia' },
-      { title: 'Componente Button con tutti gli stati', priority: 'medium', status: 'todo', due: 10 },
+      { title: 'Definire palette e tipografia', priority: 'high', status: 'in_progress', due: 4, assignee: 'giulia', labels: ['design'] },
+      { title: 'Componente Button con tutti gli stati', priority: 'medium', status: 'todo', due: 10, labels: ['ui', 'accessibilità'] },
     ],
   },
   {
@@ -108,9 +112,9 @@ const projects = [
     members: ['giulia', 'luca'],
     createdDaysAgo: 18,
     tasks: [
-      { title: 'Descrivere gli endpoint di autenticazione', priority: 'medium', status: 'todo', due: 6, assignee: 'giulia' },
-      { title: 'Esempi di errore per ogni endpoint', priority: 'low', status: 'todo', due: 13, assignee: 'luca' },
-      { title: 'Collection Postman', priority: 'medium', status: 'in_progress', due: 3, assignee: 'sara' },
+      { title: 'Descrivere gli endpoint di autenticazione', priority: 'medium', status: 'todo', due: 6, assignee: 'giulia', labels: ['docs'] },
+      { title: 'Esempi di errore per ogni endpoint', priority: 'low', status: 'todo', due: 13, assignee: 'luca', labels: ['docs', 'esempi'] },
+      { title: 'Collection Postman', priority: 'medium', status: 'in_progress', due: 3, assignee: 'sara', labels: ['postman'], comments: [{ author: 'luca', text: 'Quando è pronta la collection la provo con Newman.', ago: 900 }] },
     ],
     messages: [
       { author: 'sara', text: 'Ho preparato la struttura della documentazione, guardate la cartella /docs.' },
@@ -126,7 +130,7 @@ const projects = [
     owner: 'marco',
     members: [],
     createdDaysAgo: 3,
-    tasks: [{ title: 'Registrare il bot e leggere i messaggi', priority: 'medium', status: 'todo', due: 5, assignee: 'marco' }],
+    tasks: [{ title: 'Registrare il bot e leggere i messaggi', priority: 'medium', status: 'todo', due: 5, assignee: 'marco', labels: ['bot'] }],
   },
   {
     key: 'tesi',
@@ -138,7 +142,7 @@ const projects = [
     members: [],
     status: 'archived',
     createdDaysAgo: 60,
-    tasks: [{ title: 'Catalogare le tesi di informatica', priority: 'low', status: 'done', due: -40, assignee: 'sara' }],
+    tasks: [{ title: 'Catalogare le tesi di informatica', priority: 'low', status: 'done', due: -40, assignee: 'sara', labels: ['archivio'] }],
   },
   {
     key: 'riservato',
@@ -150,7 +154,7 @@ const projects = [
     owner: 'giulia',
     members: [],
     createdDaysAgo: 30,
-    tasks: [{ title: 'Ripassare Node.js per l\'esame', priority: 'high', status: 'in_progress', due: 8, assignee: 'giulia' }],
+    tasks: [{ title: 'Ripassare Node.js per l\'esame', priority: 'high', status: 'in_progress', due: 8, assignee: 'giulia', labels: ['studio'] }],
   },
   {
     key: 'spam',
@@ -162,15 +166,117 @@ const projects = [
     members: [],
     createdDaysAgo: 1,
   },
+
+  // ---- Progetti aggiunti nella seconda versione dei dati dimostrativi ----
+  {
+    key: 'scacchi',
+    title: 'Sito del circolo di scacchi',
+    description: 'Sito statico per il circolo: calendario dei tornei, classifiche e archivio delle partite.',
+    category: 'Web',
+    technologies: ['Astro', 'CSS', 'Markdown'],
+    owner: 'chiara',
+    members: ['davide', 'elisa'],
+    createdDaysAgo: 26,
+    tasks: [
+      { title: 'Struttura delle pagine e navigazione', priority: 'high', status: 'done', due: -15, assignee: 'chiara', labels: ['frontend'] },
+      { title: 'Classifica del campionato sociale', description: 'Tabella ordinabile con punti e partite giocate.', priority: 'high', status: 'in_progress', due: 4, assignee: 'davide', labels: ['frontend', 'dati'], comments: [{ author: 'chiara', text: 'I dati arrivano da un file CSV: ti basta leggerlo in fase di build.', ago: 2200 }, { author: 'davide', text: 'Perfetto, evito di tenere un database per una tabella sola.', ago: 2100 }] },
+      { title: 'Archivio delle partite in formato PGN', priority: 'medium', status: 'todo', due: 14, assignee: 'elisa', labels: ['dati'] },
+      { title: 'Foto dei tornei: ottimizzare le immagini', priority: 'low', status: 'todo', due: 21, labels: ['performance'] },
+      { title: 'Pagina "Chi siamo" con lo statuto', priority: 'low', status: 'done', due: -8, assignee: 'elisa', labels: ['contenuti'] },
+    ],
+    messages: [
+      { author: 'chiara', text: 'Benvenuti! Il sito deve essere pronto prima del torneo di primavera.' },
+      { author: 'elisa', text: 'Io mi occupo dei contenuti e dell\'archivio delle partite.' },
+      { author: 'davide', text: 'Io della classifica. Chiara, ti mando una bozza domani.' },
+    ],
+  },
+  {
+    key: 'ricettario',
+    title: 'Ricettario condiviso',
+    description: 'App per salvare e condividere le ricette di famiglia, con lista della spesa automatica.',
+    category: 'Mobile',
+    technologies: ['React Native', 'SQLite'],
+    owner: 'davide',
+    members: ['chiara', 'marco'],
+    createdDaysAgo: 12,
+    tasks: [
+      { title: 'Modello dati: ricette, ingredienti, passaggi', priority: 'high', status: 'done', due: -5, assignee: 'davide', labels: ['dati'] },
+      { title: 'Lista della spesa generata dalle ricette', priority: 'high', status: 'in_progress', due: 3, assignee: 'marco', labels: ['funzionalità'], comments: [{ author: 'davide', text: 'Gli ingredienti uguali vanno sommati (es. 2 uova + 3 uova).', ago: 1800 }, { author: 'marco', text: 'Faccio una funzione che unisce per nome e unità di misura.', ago: 1700 }] },
+      { title: 'Foto della ricetta dalla fotocamera', priority: 'medium', status: 'todo', due: 11, assignee: 'chiara', labels: ['ui'] },
+      { title: 'Ricerca per ingrediente', priority: 'medium', status: 'todo', due: 15, labels: ['funzionalità'] },
+    ],
+    messages: [
+      { author: 'davide', text: 'Ho caricato le prime 20 ricette di prova per provare la lista della spesa.' },
+      { author: 'chiara', text: 'Bene! Per le foto uso la libreria ufficiale della fotocamera.' },
+    ],
+  },
+  {
+    key: 'biblioteca',
+    title: 'Analisi dei dati della biblioteca',
+    description: 'Quali libri vengono presi di più, e quando? Analisi dei prestiti degli ultimi tre anni con grafici.',
+    category: 'Dati',
+    technologies: ['Python', 'Jupyter', 'SQL'],
+    owner: 'elisa',
+    members: ['sara', 'davide'],
+    createdDaysAgo: 16,
+    tasks: [
+      { title: 'Estrarre i prestiti dal database', priority: 'high', status: 'done', due: -10, assignee: 'sara', labels: ['sql'] },
+      { title: 'Pulizia dei titoli duplicati', priority: 'medium', status: 'in_progress', due: 2, assignee: 'davide', labels: ['dati', 'qualità'], comments: [{ author: 'elisa', text: 'Attenzione alle edizioni diverse dello stesso libro: non sono duplicati.', ago: 2500 }] },
+      { title: 'Grafico dei prestiti per mese', priority: 'medium', status: 'todo', due: 9, assignee: 'elisa', labels: ['grafici'] },
+      { title: 'Relazione finale per la biblioteca', priority: 'low', status: 'todo', due: 25, labels: ['docs'] },
+    ],
+  },
+  {
+    key: 'calcetto',
+    title: 'Torneo di calcetto aziendale',
+    description: 'Organizzazione del torneo tra reparti: squadre, calendario delle partite e classifica.',
+    category: 'Altro',
+    technologies: ['Google Sheets'],
+    owner: 'marco',
+    members: ['luca', 'chiara'],
+    createdDaysAgo: 9,
+    tasks: [
+      { title: 'Raccogliere le iscrizioni delle squadre', priority: 'high', status: 'done', due: -4, assignee: 'luca', labels: ['organizzazione'] },
+      { title: 'Calendario delle partite', priority: 'high', status: 'in_progress', due: 1, assignee: 'marco', labels: ['organizzazione', 'urgente'], comments: [{ author: 'luca', text: 'Il campo è libero solo il martedì e il giovedì sera.', ago: 800 }, { author: 'marco', text: 'Allora due partite a sera, ne esce un calendario da 6 settimane.', ago: 700 }] },
+      { title: 'Prenotare il campo e gli spogliatoi', priority: 'medium', status: 'todo', due: 6, assignee: 'luca', labels: ['logistica'] },
+      { title: 'Preparare le coppe e le magliette', priority: 'low', status: 'todo', due: 28, assignee: 'chiara', labels: ['logistica'] },
+    ],
+    messages: [
+      { author: 'marco', text: 'Squadre iscritte: siamo a 8, il formato a girone unico funziona.' },
+      { author: 'luca', text: 'Perfetto. Chiedo al centro sportivo i giorni disponibili.' },
+    ],
+  },
+  {
+    key: 'tesi-sd',
+    title: 'Tesi triennale: sistemi distribuiti',
+    description: 'Appunti, bibliografia e scadenze per la tesi. Progetto privato, visibile solo ai membri.',
+    category: 'Documentazione',
+    technologies: ['LaTeX', 'Zotero'],
+    visibility: 'private',
+    owner: 'davide',
+    members: ['elisa'],
+    createdDaysAgo: 40,
+    tasks: [
+      { title: 'Capitolo 2: stato dell\'arte', priority: 'high', status: 'in_progress', due: 6, assignee: 'davide', labels: ['scrittura'], comments: [{ author: 'elisa', text: 'Ho riletto il paragrafo sul consenso: manca la citazione di Lamport.', ago: 1200 }] },
+      { title: 'Bibliografia in Zotero', priority: 'medium', status: 'done', due: -12, assignee: 'elisa', labels: ['bibliografia'] },
+      { title: 'Revisione finale con il relatore', priority: 'high', status: 'todo', due: 30, labels: ['scadenza'] },
+    ],
+  },
 ];
 
-// Inviti in attesa, per provare accettazione e rifiuto.
+// Inviti: di default in attesa; `status` permette di mostrare anche inviti già risolti.
 const invitations = [
   { project: 'vendite', inviter: 'sara', invitee: 'marco' },
   { project: 'bot', inviter: 'marco', invitee: 'giulia' },
+  { project: 'scacchi', inviter: 'chiara', invitee: 'sara' },
+  { project: 'calcetto', inviter: 'marco', invitee: 'giulia' },
+  { project: 'ricettario', inviter: 'davide', invitee: 'luca', status: 'declined' },
 ];
 
-// Una segnalazione aperta, per provare la moderazione nel pannello admin.
-const reports = [{ project: 'spam', reporter: 'giulia', reason: 'Sembra spam: promette guadagni facili e rimanda a un link esterno.' }];
+// Segnalazioni: una aperta (da moderare) e una già archiviata dall'admin.
+const reports = [
+  { project: 'spam', reporter: 'giulia', reason: 'Sembra spam: promette guadagni facili e rimanda a un link esterno.' },
+  { project: 'bot', reporter: 'davide', reason: 'Mi sembra un duplicato di un altro progetto già presente.', status: 'dismissed', note: 'Verificato: sono due progetti diversi.', resolvedBy: 'admin' },
+];
 
 module.exports = { users, projects, invitations, reports };

@@ -149,7 +149,7 @@ export default function MyTasks() {
                     </button>
                     <Link to={`/projects/${task.project._id}?tab=board&task=${task._id}`} className="task-row-main">
                       <strong className={task.status === 'done' ? 'is-done' : ''}>{task.title}</strong>
-                      <small className="muted">{task.project.title}</small>
+                      <small className="muted">{task.project.title}{task.labels?.length > 0 && ` · ${task.labels.map((l) => `#${l}`).join(' ')}`}</small>
                     </Link>
                     <PriorityBadge value={task.priority} />
                     <StatusPill value={task.status} />

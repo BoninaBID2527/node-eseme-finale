@@ -13,6 +13,8 @@ Piattaforma collaborativa di gestione progetti: **bacheca a colonne** (Da fare �
 | ![Bacheca](docs/img/bacheca.png) | ![Amministrazione](docs/img/admin.png) |
 
 > Per la discussione orale vedi la **[guida all'esame](docs/GUIDA_ORALE.md)**.
+>
+> **Vetrina per il portfolio:** `docs/index.html` è una pagina statica con descrizione, schermate e tecnologie. Per pubblicarla con GitHub Pages: *Settings → Pages → Branch `main` → cartella `/docs`*. L'applicazione completa non può girare su Pages (servono backend e MongoDB): si avvia in locale come descritto sotto.
 
 ## Indice
 

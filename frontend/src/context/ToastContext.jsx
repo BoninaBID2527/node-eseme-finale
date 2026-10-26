@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import Icon from '../components/Icon';
+import { DEMO, DEMO_MESSAGE } from '../demo/constants';
 
 const ToastContext = createContext(null);
 
@@ -13,6 +14,7 @@ export function ToastProvider({ children }) {
 
   const toast = useCallback(
     (message, type = 'info') => {
+      if (DEMO && String(message).includes(DEMO_MESSAGE)) return; // nella demo lo spiega già il popup
       const id = Date.now() + Math.random();
       setToasts((list) => [...list.slice(-3), { id, message, type }]);
       setTimeout(() => dismiss(id), type === 'error' ? 7000 : 4500);

@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SESSION_EVENT } from '../api';
+import { DEMO } from '../demo/constants';
+import { createDemoSocket } from '../demo/socket';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -30,7 +32,7 @@ export function RealtimeProvider({ children }) {
     }
 
     refreshUnread();
-    const instance = io({ auth: { token }, reconnectionDelayMax: 5000 });
+    const instance = DEMO ? createDemoSocket() : io({ auth: { token }, reconnectionDelayMax: 5000 });
     wasConnected.current = false;
 
     instance.on('connect', () => {

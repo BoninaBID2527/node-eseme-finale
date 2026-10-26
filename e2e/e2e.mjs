@@ -1,4 +1,4 @@
-// Test end-to-end di BONHUB: due browser contemporanei (Chromium) provano i flussi principali dell'app
+// Test end-to-end di BONTASK: due browser contemporanei (Chromium) provano i flussi principali dell'app
 // (registrazione, sessione scaduta, progetti, inviti, task e bacheca live, chat, notifiche, catalogo,
 // segnalazioni e moderazione, blocco utenti, mobile) e controllano l'accessibilità con axe-core.
 //

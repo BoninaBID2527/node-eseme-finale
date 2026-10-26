@@ -1,7 +1,7 @@
 // Piccolo client per le API REST: aggiunge il token e trasforma gli errori in Error con messaggio.
 // error.status = codice HTTP · error.fields = { campo: messaggio } per i form · error.code = identificativo stabile.
 const TOKEN_KEY = 'taskflow_token';
-// Chiave di sessione invariata dopo il cambio di nome in BONHUB: così chi ha già fatto l'accesso resta connesso.
+// Chiave di sessione invariata dopo il cambio di nome in BONTASK: così chi ha già fatto l'accesso resta connesso.
 
 export const getToken = () => {
   try {
@@ -27,6 +27,16 @@ const endSession = (reason) => window.dispatchEvent(new CustomEvent(SESSION_EVEN
 async function request(method, path, body) {
   const headers = {};
   const token = getToken();
+  // Demo statica (GitHub Pages): nessun server, risponde il backend simulato in memoria.
+  if (import.meta.env.MODE === 'demo') {
+    const { demoRequest } = await import('./demo/server');
+    try {
+      return await demoRequest(method, path, body, token);
+    } catch (error) {
+      if (token && error.code === 'session_invalid') endSession('ended');
+      throw error;
+    }
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const options = { method, headers };

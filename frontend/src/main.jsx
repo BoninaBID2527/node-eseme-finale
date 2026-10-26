@@ -1,6 +1,6 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, HashRouter } from 'react-router-dom';
 import '@fontsource-variable/sora';
 import '@fontsource-variable/inter';
 import App from './App';
@@ -20,18 +20,28 @@ import './styles/project.css';
 import './styles/board.css';
 import './styles/admin.css';
 
+// Nella demo statica (GitHub Pages) gli indirizzi usano il # perché non c'è un server che risponda a ogni percorso.
+const DEMO = import.meta.env.MODE === 'demo';
+const Router = DEMO ? HashRouter : BrowserRouter;
+const DemoLayer = DEMO ? lazy(() => import('./demo/DemoLayer')) : null;
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <Router>
       <ToastProvider>
         <AuthProvider>
           <RealtimeProvider>
             <ConfirmProvider>
               <App />
+              {DemoLayer && (
+                <Suspense fallback={null}>
+                  <DemoLayer />
+                </Suspense>
+              )}
             </ConfirmProvider>
           </RealtimeProvider>
         </AuthProvider>
       </ToastProvider>
-    </BrowserRouter>
+    </Router>
   </StrictMode>
 );

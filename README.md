@@ -1,6 +1,6 @@
-# BONHUB
+# BONTASK
 
-> BONHUB è l'applicazione sviluppata per la consegna TaskFlow.
+> BONTASK è l'applicazione sviluppata per la consegna TaskFlow.
 
 Piattaforma collaborativa di gestione progetti: **bacheca a colonne** (Da fare · In corso · Completato), **chat** e **notifiche in tempo reale**, **catalogo pubblico** filtrabile e **pannello di moderazione** per gli amministratori. Progetto d'esame finale di Node.js.
 
@@ -14,7 +14,7 @@ Piattaforma collaborativa di gestione progetti: **bacheca a colonne** (Da fare �
 
 > Per la discussione orale vedi la **[guida all'esame](docs/GUIDA_ORALE.md)**.
 >
-> **Vetrina per il portfolio:** `docs/index.html` è una pagina statica con descrizione, schermate e tecnologie. Per pubblicarla con GitHub Pages: *Settings → Pages → Branch `main` → cartella `/docs`*. L'applicazione completa non può girare su Pages (servono backend e MongoDB): si avvia in locale come descritto sotto.
+> **Demo online:** [boninabid2527.github.io/node-eseme-finale](https://boninabid2527.github.io/node-eseme-finale/) è l'interfaccia vera dell'app pubblicata con GitHub Pages (cartella `/docs`), senza server. Un backend simulato nel browser (`frontend/src/demo/`) risponde alle letture con gli stessi dati dimostrativi del seed e con le stesse regole di permessi, filtri e paginazione; i pulsanti che scriverebbero sul server aprono un popup che spiega cosa farebbe il backend (rotta, chi può usarla, passaggi, eventi in tempo reale) e non salvano nulla. Si rigenera con `cd frontend && npm run build:demo`, poi si copiano `dist-demo/index.html` e `dist-demo/brand/` in `docs/`. L'applicazione completa (backend e MongoDB) si avvia in locale come descritto sotto.
 
 ## Indice
 
@@ -86,6 +86,7 @@ Su un database vuoto il seed crea **8 utenti e 15 progetti** (pubblici, privati,
 | `frontend` | `npm run dev` | server di sviluppo Vite |
 | `frontend` | `npm run build` | build di produzione in `frontend/dist` |
 | `frontend` | `npm run preview` | anteprima della build |
+| `frontend` | `npm run build:demo` | demo statica senza server in `frontend/dist-demo` (un solo `index.html` + `brand/`), da copiare in `docs/` |
 | `e2e` | `npm test` | test end-to-end nel browser (vedi [e2e/README.md](e2e/README.md)) |
 
 ## Configurazione
@@ -136,10 +137,12 @@ frontend/
     styles/             tokens.css (palette, font, spaziature, raggi, ombre, movimento), base.css (gerarchia
                         tipografica), ui.css (componenti condivisi), layout.css (barra laterale, tablet, mobile)
                         + un file per area: auth, catalog, work, forms, project, board, admin
-  public/brand/         logo BONHUB (PNG trasparenti: scritta nera, scritta bianca, sola icona) e icone
+    demo/               solo per la demo statica: dati del seed in memoria, backend simulato (letture)
+                        e popup che spiegano le azioni del backend
+  public/brand/         logo BONTASK (PNG trasparenti: scritta nera, scritta bianca, sola icona) e icone
 postman/                collection + environment
 e2e/                    test end-to-end (Playwright + axe-core)
-docs/                   guida all'esame e immagini
+docs/                   guida all'esame, immagini e demo statica pubblicata con GitHub Pages
 ```
 
 ## Modelli e relazioni
@@ -281,7 +284,7 @@ Tutte le rotte sono sotto `/api`. Gli errori hanno sempre la forma `{ "message":
 
 ### Collection Postman
 
-In `postman/` ci sono la collection **BONHUB API** (111 richieste in 10 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **BONHUB – locale**.
+In `postman/` ci sono la collection **BONTASK API** (111 richieste in 10 cartelle, con test automatici sui codici HTTP e sui corpi) e l'environment **BONTASK – locale**.
 
 1. Importa i due file in Postman e seleziona l'environment.
 2. Avvia MongoDB e il backend ed esegui `npm run seed` (serve per l'admin).
@@ -303,7 +306,7 @@ React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libre
 
 *Come è stata scelta:* sono state confrontate a schermo quattro coppie su uno specimen con testo italiano, accenti, numeri e piccoli componenti (Sora + Inter, Unbounded + Figtree, Outfit + Plus Jakarta Sans e la coppia precedente Space Grotesk + Manrope). Unbounded è molto distintiva ma troppo larga per titoli lunghi; Outfit è vicina alla scritta del logo ma ho preferito la maggiore sobrietà di Sora; la coppia precedente risultava più generica. Licenze verificate sui metadati dei pacchetti npm (tutte SIL OFL 1.1). Le pagine dei cataloghi (Google Fonts) non erano raggiungibili dall'ambiente di sviluppo: la valutazione si basa sullo specimen e sui metadati dei pacchetti.
 
-**Logo** (`frontend/src/components/Logo.jsx`, `frontend/public/brand/`): il marchio approvato (quadrato giallo con barre nere e freccia verso l'alto a destra) è usato così com'è, senza ridisegnarlo, in tre varianti PNG trasparenti: logo completo con scritta nera (superfici chiare), con scritta bianca (superfici scure) e sola icona (favicon e navigazione compatta). Il componente `<Logo variant tone height decorative />` gestisce varianti, dimensioni e accessibilità.
+**Logo** (`frontend/src/components/Logo.jsx`, `frontend/public/brand/`): il marchio approvato (quadrato giallo con barre nere e freccia verso l'alto a destra) è usato così com'è, senza ridisegnarlo; nella scritta BONTASK le lettere "BON" sono quelle del logo originale e "TASK" è composta con un carattere dello stesso stile. Tre varianti PNG trasparenti: logo completo con scritta nera (superfici chiare), con scritta bianca (superfici scure) e sola icona (favicon e navigazione compatta). Il componente `<Logo variant tone height decorative />` gestisce varianti, dimensioni e accessibilità.
 
 **Responsive:** barra laterale estesa su desktop, compatta a sole icone su tablet, barra superiore + menu a scomparsa + barra di navigazione inferiore su smartphone; il pannello di un task è un cassetto laterale (a tutto schermo su smartphone).
 
@@ -322,7 +325,7 @@ React 19 + Vite + React Router + `socket.io-client`, CSS semplice (nessuna libre
 | Cosa | Comando | Esito dell'ultima esecuzione |
 | --- | --- | --- |
 | Backend: test di integrazione (autenticazione, permessi, filtri, task, chat, inviti, admin, upload, Socket.IO) | `cd backend && npm test` | 78 test, 7 suite, tutti superati |
-| API: collection Postman con Newman | `npx newman run postman/BONHUB.postman_collection.json -e postman/BONHUB.postman_environment.json` | 111 richieste, 170 verifiche, 0 fallite |
+| API: collection Postman con Newman | `npx newman run postman/BONTASK.postman_collection.json -e postman/BONTASK.postman_environment.json` | 111 richieste, 170 verifiche, 0 fallite |
 | Frontend: build di produzione | `cd frontend && npm run build` | ok |
 | Browser: due utenti in parallelo, mobile, accessibilità | `cd e2e && npm test` | 37 scenari su 37 superati, nessun errore in console |
 

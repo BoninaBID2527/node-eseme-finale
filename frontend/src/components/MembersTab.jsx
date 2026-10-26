@@ -133,7 +133,7 @@ export default function MembersTab({ project, isOwner, isMember, writable, onCha
           <h2 id="invite-title">Invita una persona</h2>
           {writable ? (
             <form className="invite-form" onSubmit={invite} noValidate>
-              <Field label="Email dell'utente" error={emailError} hint="Deve essere già registrato a BONHUB. Riceverà un invito da accettare.">
+              <Field label="Email dell'utente" error={emailError} hint="Deve essere già registrato a BONTASK. Riceverà un invito da accettare.">
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@esempio.it" autoComplete="off" required />
               </Field>
               <button className={`btn btn-primary${busy ? ' is-loading' : ''}`} disabled={busy || !email}>

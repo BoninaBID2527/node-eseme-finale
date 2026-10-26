@@ -1,4 +1,4 @@
-// Set di icone a tratto (24x24) disegnate per BONHUB: nessuna libreria esterna.
+// Set di icone a tratto (24x24) disegnate per BONTASK: nessuna libreria esterna.
 const PATHS = {
   dashboard: 'M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z',
   compass: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z',

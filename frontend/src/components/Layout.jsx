@@ -91,7 +91,7 @@ export default function Layout() {
       </a>
 
       <header className="topbar">
-        <Link to="/" aria-label="BONHUB, pagina iniziale">
+        <Link to="/" aria-label="BONTASK, pagina iniziale">
           <Logo tone="dark" height={26} decorative />
         </Link>
         <div className="topbar-actions">
@@ -117,7 +117,7 @@ export default function Layout() {
       <div className={`sidebar-backdrop${open ? ' is-open' : ''}`} onClick={() => setOpen(false)} aria-hidden="true" />
 
       <aside id="sidebar" className={`sidebar${open ? ' is-open' : ''}`} aria-label="Barra laterale" inert={isMobile && !open ? true : undefined}>
-        <Link to="/" className="sidebar-logo" aria-label="BONHUB, pagina iniziale">
+        <Link to="/" className="sidebar-logo" aria-label="BONTASK, pagina iniziale">
           <Logo className="logo-wide" tone="dark" height={30} decorative />
           <Logo className="logo-compact" variant="icon" height={40} decorative />
         </Link>

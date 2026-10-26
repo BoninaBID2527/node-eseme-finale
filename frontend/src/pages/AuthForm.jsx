@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { DEMO, DEMO_ACCOUNTS } from '../demo/constants';
 
 // Form condiviso da accesso e registrazione. Gli errori del server compaiono accanto ai singoli campi.
 export default function AuthForm({ mode }) {
@@ -48,7 +49,7 @@ export default function AuthForm({ mode }) {
   return (
     <div className="auth">
       <aside className="auth-aside">
-        <Link to="/catalog" className="auth-brand" aria-label="BONHUB, vai al catalogo">
+        <Link to="/catalog" className="auth-brand" aria-label="BONTASK, vai al catalogo">
           <Logo tone="dark" height={40} decorative />
         </Link>
 
@@ -85,7 +86,7 @@ export default function AuthForm({ mode }) {
         <div className="auth-card">
           <Logo className="auth-mobile-logo" variant="icon" height={44} decorative />
           <div className="auth-heading">
-            <p className="eyebrow">{isLogin ? 'Accedi a BONHUB' : 'Nuovo account'}</p>
+            <p className="eyebrow">{isLogin ? 'Accedi a BONTASK' : 'Nuovo account'}</p>
             <h1>{isLogin ? 'Bentornato' : 'Crea il tuo account'}</h1>
             <p className="muted">{isLogin ? 'Accedi per gestire i tuoi progetti.' : 'Bastano pochi secondi per iniziare.'}</p>
           </div>
@@ -149,6 +150,19 @@ export default function AuthForm({ mode }) {
               <span>{isLogin ? 'Accedi' : 'Registrati'}</span>
             </button>
           </form>
+
+          {DEMO && isLogin && (
+            <div className="demo-accounts" role="group" aria-label="Account dimostrativi">
+              <p>Demo: scegli un account dimostrativo, poi premi Accedi.</p>
+              <div className="chips">
+                {DEMO_ACCOUNTS.map((a) => (
+                  <button key={a.email} type="button" className="pill-btn" aria-pressed={form.email === a.email} onClick={() => { setForm({ ...form, email: a.email, password: a.password }); setErrors({}); setFormError(''); }}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="auth-footer">
             <p className="auth-switch">

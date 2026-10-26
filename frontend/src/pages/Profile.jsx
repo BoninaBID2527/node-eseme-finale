@@ -124,7 +124,7 @@ export default function Profile() {
           <Icon name="logout" size={20} />
           <div>
             <h2 id="p-session">Sessione</h2>
-            <p className="muted">Esci da BONHUB su questo dispositivo. La sessione viene invalidata anche sul server.</p>
+            <p className="muted">Esci da BONTASK su questo dispositivo. La sessione viene invalidata anche sul server.</p>
           </div>
         </div>
         <div className="form-actions">

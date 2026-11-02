@@ -58,7 +58,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="page page-narrow">
+    <div className="page page-narrow profile-page">
       <PageHeader eyebrow="Account" title="Profilo" lead="Gestisci i tuoi dati, la sicurezza dell'account e la sessione." />
 
       <section className="card profile-card" aria-label="Il tuo account">

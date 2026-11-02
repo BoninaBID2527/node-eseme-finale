@@ -7,8 +7,8 @@
 // Percorso base dell'app ("/" in locale, la cartella del sito nella demo su GitHub Pages)
 const BASE = import.meta.env.BASE_URL;
 const SOURCES = {
-  full: { light: `${BASE}brand/bontask-logo.png`, dark: `${BASE}brand/bontask-logo-white.png`, ratio: 1022 / 187 },
-  icon: { light: `${BASE}brand/bontask-icon.png`, dark: `${BASE}brand/bontask-icon.png`, ratio: 347 / 349 },
+  full: { light: `${BASE}brand/bontask-logo.png`, dark: `${BASE}brand/bontask-logo-white.png`, ratio: 1200 / 232 },
+  icon: { light: `${BASE}brand/bontask-icon.png`, dark: `${BASE}brand/bontask-icon.png`, ratio: 1 },
 };
 
 export default function Logo({ variant = 'full', tone = 'light', height = 32, decorative = false, className = '' }) {

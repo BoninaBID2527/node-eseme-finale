@@ -105,9 +105,8 @@
 .topbar, .sidebar-backdrop, .bottom-nav { display: none; }
 
 /* ---------- Pagina ---------- */
-.page { max-width: 1240px; margin: 0 auto; padding: var(--s-10) var(--s-10) 80px; }
-.page-narrow { max-width: 760px; }
-.page-wide { max-width: 1360px; }
+.page { width: 100%; max-width: none; margin: 0; padding: var(--s-10) clamp(var(--s-6), 3.5vw, 72px) 80px; }
+.page-narrow, .page-wide { max-width: none; }
 .page-loading { padding: 80px var(--s-6); text-align: center; color: var(--text-3); }
 
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: var(--s-4) var(--s-6); margin-bottom: var(--s-8); }
@@ -222,4 +221,11 @@
   .form-row { grid-template-columns: 1fr; }
   .toasts { right: var(--s-4); left: var(--s-4); bottom: calc(76px + env(safe-area-inset-bottom)); width: auto; }
   .modal-drawer { border-radius: 0; max-width: none; }
+}
+
+/* ---------- Schermi larghi: le pagine a modulo si dispongono su due colonne invece di allungare i campi ---------- */
+@media (min-width: 1180px) {
+  .profile-page { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-6); align-items: start; }
+  .profile-page > .page-head, .profile-page > .profile-card, .profile-page > .panel-session { grid-column: 1 / -1; }
+  .profile-page > .panel { margin-bottom: 0; }
 }
